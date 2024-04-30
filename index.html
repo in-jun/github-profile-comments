@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>comment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .top-right {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        #authButton,
+        #logoutButton {
+            padding: 10px;
+            background-color: #000;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #authStatus {
+            margin-bottom: 20px;
+        }
+
+        .comment {
+            margin-bottom: 10px;
+            padding: 5px;
+            border: 1px solid #000;
+            border-radius: 5px;
+        }
+
+        #commentInput {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #000;
+            border-radius: 5px;
+            width: calc(100% - 22px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="authStatus"></div>
+        <div class="top-right">
+            <button id="authButton">Login / Signup</button>
+            <button id="logoutButton" style="display: none;">Logout</button>
+        </div>
+        <div id="commentsContainer"></div>
+        <form id="commentForm" style="display: none;">
+            <input type="text" id="commentInput" placeholder="Enter your comment (max 35 characters)" maxlength="35">
+        </form>
+    </div>
+
+    <script>
+        function checkLoginStatus() {
+            fetch("/api/")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logged_in) {
+                        document.getElementById("authStatus").innerText = "Logged in as: " + data.message;
+                        document.getElementById("authButton").style.display = "none";
+                        document.getElementById("logoutButton").style.display = "block";
+                        document.getElementById("commentForm").style.display = "block";
+                    } else {
+                        document.getElementById("authStatus").innerText = "Not logged in";
+                        document.getElementById("authButton").style.display = "block";
+                        document.getElementById("logoutButton").style.display = "none";
+                        document.getElementById("commentForm").style.display = "none";
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        document.getElementById("authButton").addEventListener("click", function () {
+            var currentPath = window.location.pathname;
+            window.location.href = "/api/login?current=" + encodeURIComponent(currentPath);
+        });
+
+        document.getElementById("logoutButton").addEventListener("click", function () {
+            fetch("/api/logout", {
+                method: 'GET'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        });
+
+        function getComments(username) {
+            fetch(`/api/user/${username}/comments`)
+                .then(response => response.json())
+                .then(data => {
+                    const commentsContainer = document.getElementById("commentsContainer");
+                    commentsContainer.innerHTML = "";
+
+                    if (data.error) {
+                        commentsContainer.innerHTML = "Error: " + data.error;
+                        return;
+                    }
+
+                    data.forEach(comment => {
+                        const commentText = document.createElement('div');
+                        commentText.classList.add('comment');
+                        commentText.innerText = `${comment.author_id}: ${comment.content}`;
+                        commentsContainer.appendChild(commentText);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function createComment(username) {
+            const content = document.getElementById("commentInput").value;
+            if (content === "") {
+                return;
+            }
+
+            if (content.length > 35) {
+                alert("Error: Comment should be maximum 35 characters.");
+                return;
+            }
+
+            fetch(`/api/user/${username}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: content })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert("Error: " + data.error);
+                    } else {
+                        alert("Comment created successfully!");
+                        getComments(username);
+                        document.getElementById("commentInput").value = "";
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        checkLoginStatus();
+
+        const pathParts = window.location.pathname.split("/");
+        const username = pathParts[pathParts.length - 1];
+        getComments(username);
+
+        document.getElementById("commentInput").addEventListener("keypress", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                createComment(username);
+            }
+        });
+    </script>
+</body>
+
+</html>
