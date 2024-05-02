@@ -150,7 +150,7 @@ func createComment(c *gin.Context) {
 	}
 
 	comment := Comment{
-		Content:    req.Content,
+		Content:    escapeHTML(req.Content),
 		ReceiverID: receiver.ID,
 		AuthorID:   author.GitHubID,
 	}
