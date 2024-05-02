@@ -76,6 +76,7 @@ func main() {
 
 	router.POST("api/user/:username/comments", createComment)
 	router.GET("api/user/:username/comments", getComments)
+	router.DELETE("api/user/:username/comments", deleteComment)
 	router.GET("api/user/:username/svg", getUserCommentSVG)
 	router.GET("api/", handleMain)
 	router.GET("api/login", handleLogin)
@@ -179,6 +180,46 @@ func getComments(c *gin.Context) {
 	var comments []Comment
 	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
 	c.JSON(200, comments)
+}
+
+func deleteComment(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(400, gin.H{"error": "Username not provided"})
+		return
+	}
+
+	var receiver GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: username}).First(&receiver).Error; err != nil {
+		c.JSON(404, gin.H{"error": "GitHub user not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	authorID := session.Get("github_id")
+	if authorID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var author GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: authorID.(string)}).First(&author).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var existing Comment
+	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.GitHubID}).First(&existing).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	if err := db.Delete(&existing).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to delete comment"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Comment deleted"})
 }
 
 func getUserCommentSVG(c *gin.Context) {

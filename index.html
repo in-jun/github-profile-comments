@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>comment</title>
+    <title>Comment</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -29,8 +29,7 @@
             right: 10px;
         }
 
-        #authButton,
-        #logoutButton {
+        button {
             padding: 10px;
             background-color: #000;
             color: #fff;
@@ -49,6 +48,19 @@
             padding: 5px;
             border: 1px solid #000;
             border-radius: 5px;
+            position: relative;
+        }
+
+        .deleteButton {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff3333;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            padding: 3px 5px;
+            cursor: pointer;
         }
 
         #commentInput {
@@ -75,51 +87,46 @@
     </div>
 
     <script>
+        const pathParts = window.location.pathname.split("/");
+        const username = pathParts[pathParts.length - 1];
+        const authStatus = document.getElementById("authStatus");
+        const authButton = document.getElementById("authButton");
+        const logoutButton = document.getElementById("logoutButton");
+        const commentForm = document.getElementById("commentForm");
+        const commentsContainer = document.getElementById("commentsContainer");
+        const commentInput = document.getElementById("commentInput");
+        let loggedInUser = null;
+
+
+        function updateUI(loggedIn) {
+            authButton.style.display = loggedIn ? "none" : "block";
+            logoutButton.style.display = loggedIn ? "block" : "none";
+            commentForm.style.display = loggedIn ? "block" : "none";
+        }
+
         function checkLoginStatus() {
             fetch("/api/")
                 .then(response => response.json())
                 .then(data => {
                     if (data.logged_in) {
-                        document.getElementById("authStatus").innerText = "Logged in as: " + data.message;
-                        document.getElementById("authButton").style.display = "none";
-                        document.getElementById("logoutButton").style.display = "block";
-                        document.getElementById("commentForm").style.display = "block";
+                        authStatus.innerText = "Logged in as: " + data.user_id;
+                        updateUI(true);
                     } else {
-                        document.getElementById("authStatus").innerText = "Not logged in";
-                        document.getElementById("authButton").style.display = "block";
-                        document.getElementById("logoutButton").style.display = "none";
-                        document.getElementById("commentForm").style.display = "none";
+                        authStatus.innerText = "Not logged in";
+                        updateUI(false);
                     }
+                    loggedInUser = data.user_id;
+                    getComments();
                 })
                 .catch(error => {
                     console.error('Error:', error);
                 });
         }
 
-        document.getElementById("authButton").addEventListener("click", function () {
-            var currentPath = window.location.pathname;
-            window.location.href = "/api/login?current=" + encodeURIComponent(currentPath);
-        });
-
-        document.getElementById("logoutButton").addEventListener("click", function () {
-            fetch("/api/logout", {
-                method: 'GET'
-            })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    window.location.reload();
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-        });
-
-        function getComments(username) {
+        function getComments() {
             fetch(`/api/user/${username}/comments`)
                 .then(response => response.json())
                 .then(data => {
-                    const commentsContainer = document.getElementById("commentsContainer");
                     commentsContainer.innerHTML = "";
 
                     if (data.error) {
@@ -128,10 +135,11 @@
                     }
 
                     data.forEach(comment => {
-                        const commentText = document.createElement('div');
-                        commentText.classList.add('comment');
-                        commentText.innerText = `${comment.author_id}: ${comment.content}`;
-                        commentsContainer.appendChild(commentText);
+                        const commentBox = document.createElement('div');
+                        commentBox.classList.add('comment');
+                        const deleteButton = (loggedInUser === comment.author_id) ? `<button onclick="deleteComment('${username}')" class="deleteButton">Delete</button>` : '';
+                        commentBox.innerHTML = `${comment.author_id}: ${comment.content} ${deleteButton}`;
+                        commentsContainer.appendChild(commentBox);
                     });
                 })
                 .catch(error => {
@@ -139,9 +147,9 @@
                 });
         }
 
-        function createComment(username) {
-            const content = document.getElementById("commentInput").value;
-            if (content === "") {
+        function createComment() {
+            const content = commentInput.value.trim();
+            if (!content) {
                 return;
             }
 
@@ -164,8 +172,22 @@
                     } else {
                         alert("Comment created successfully!");
                         getComments(username);
-                        document.getElementById("commentInput").value = "";
+                        commentInput.value = "";
                     }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function deleteComment() {
+            fetch(`/api/user/${username}/comments`, {
+                method: 'DELETE',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    getComments(username);
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -174,15 +196,30 @@
 
         checkLoginStatus();
 
-        const pathParts = window.location.pathname.split("/");
-        const username = pathParts[pathParts.length - 1];
-        getComments(username);
-
-        document.getElementById("commentInput").addEventListener("keypress", function (event) {
+        commentInput.addEventListener("keypress", function (event) {
             if (event.key === "Enter") {
                 event.preventDefault();
                 createComment(username);
             }
+        });
+
+        authButton.addEventListener("click", function () {
+            const currentPath = window.location.pathname;
+            window.location.href = "/api/login?current=" + encodeURIComponent(currentPath);
+        });
+
+        logoutButton.addEventListener("click", function () {
+            fetch("/api/logout", {
+                method: 'GET'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
         });
     </script>
 </body>
