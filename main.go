@@ -132,7 +132,10 @@ func createComment(c *gin.Context) {
 	}
 
 	if len(req.Content) > 35 {
-		req.Content = req.Content[:35]
+		runes := []rune(req.Content)
+		if len(runes) > 35 {
+			req.Content = string(runes[:35])
+		}
 	}
 
 	var existing Comment
