@@ -131,6 +131,11 @@ func createComment(c *gin.Context) {
 		return
 	}
 
+	if req.Content == "" {
+		c.JSON(400, gin.H{"error": "Content not provided"})
+		return
+	}
+
 	if len(req.Content) > 35 {
 		runes := []rune(req.Content)
 		if len(runes) > 35 {
