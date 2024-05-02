@@ -74,14 +74,17 @@ func main() {
 
 	router.Use(sessions.Sessions("session", store))
 
-	router.POST("api/user/:username/comments", createComment)
-	router.GET("api/user/:username/comments", getComments)
-	router.DELETE("api/user/:username/comments", deleteComment)
-	router.GET("api/user/:username/svg", getUserCommentSVG)
-	router.GET("api/", handleMain)
-	router.GET("api/login", handleLogin)
-	router.GET("api/auth/callback", handleCallback)
-	router.GET("api/logout", handleLogout)
+	api := router.Group("api")
+	{
+		api.POST("/user/:username/comments", createComment)
+		api.GET("/user/:username/comments", getComments)
+		api.DELETE("/user/:username/comments", deleteComment)
+		api.GET("/user/:username/svg", getUserCommentSVG)
+		api.GET("/", handleMain)
+		api.GET("/login", handleLogin)
+		api.GET("/auth/callback", handleCallback)
+		api.GET("/logout", handleLogout)
+	}
 	// Favicon routing
 	router.StaticFile("/favicon.ico", "./favicon.ico")
 	// HTML file
