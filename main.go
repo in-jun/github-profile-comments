@@ -195,12 +195,12 @@ func handleMain(c *gin.Context) {
 	githubID := session.Get("github_id")
 	if githubID != nil {
 		c.JSON(http.StatusOK, gin.H{
-			"message":   fmt.Sprintf("Logged in as %s", githubID),
+			"user_id":   githubID.(string),
 			"logged_in": true,
 		})
 	} else {
 		c.JSON(http.StatusOK, gin.H{
-			"message":   "Not logged in",
+			"user_id":   "Not logged in",
 			"logged_in": false,
 		})
 	}
