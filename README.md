@@ -18,16 +18,6 @@ GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 �
 -   데이터베이스: MySQL
 -   프레임워크: Gin
 
-### 환경 변수
+### 결과:
 
-프로젝트를 실행하려면 다음 환경 변수를 설정해야 합니다.
-
--   **GITHUB_CLIENT_ID**: GitHub OAuth 애플리케이션의 클라이언트 ID입니다.
--   **GITHUB_CLIENT_SECRET**: GitHub OAuth 애플리케이션의 클라이언트 시크릿입니다.
--   **DB_HOST**: 데이터베이스 호스트 주소입니다. 예: `localhost`
--   **DB_PORT**: 데이터베이스 포트 번호입니다. 예: `3306`
--   **DB_USER**: 데이터베이스 사용자 이름입니다.
--   **DB_PASSWORD**: 데이터베이스 암호입니다.
--   **DB_NAME**: 데이터베이스 이름입니다. 예: `comment`
--   **ORIGIN_URL**: 애플리케이션 도메인의 오리진 URL입니다. 예: `http://example.com`
--   **PORT**: 애플리케이션을 실행할 포트 번호입니다.
+[![Comments](https://comment.injunweb.com/api/user/in-jun/svg)](https://comment.injunweb.com/in-jun)
