@@ -244,6 +244,7 @@ func getUserCommentSVG(c *gin.Context) {
 	svgContent := generateCommentBox(gitHubUser.GitHubID, comments)
 
 	c.Writer.Header().Set("Content-Type", "image/svg+xml")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.String(http.StatusOK, svgContent)
 }
 
