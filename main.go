@@ -227,6 +227,11 @@ func deleteComment(c *gin.Context) {
 
 func getUserCommentSVG(c *gin.Context) {
 	username := c.Param("username")
+	if username == "" {
+		c.JSON(400, gin.H{"error": "Username not provided"})
+		return
+	}
+
 	var gitHubUser GitHubUser
 	if err := db.Where(&GitHubUser{GitHubID: username}).First(&gitHubUser).Error; err != nil {
 		c.JSON(404, gin.H{"error": "GitHub user not found"})
