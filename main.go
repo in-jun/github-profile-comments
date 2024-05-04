@@ -355,6 +355,7 @@ func handleCallback(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"message":   "Logged in successfully",
 		"github_id": githubID,
 	})
 }
