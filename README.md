@@ -4,6 +4,15 @@
 
 GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 댓글을 남길 수 있도록 합니다.
 
+### 사용법:
+
+1. [여기](https://comment.injunweb.com/api/login)로 이동하여 회원가입을 진행합니다.
+2. 프로필 README에 다음 코드를 추가합니다:
+    ```
+    [![Comments](https://comment.injunweb.com/api/user/{깃허브 아이디}/svg)](https://comment.injunweb.com/{깃허브 아이디})
+    ```
+    여기서 `{깃허브 아이디}`는 본인의 깃허브 아이디로 대체해야 합니다.
+
 ### 핵심 기능:
 
 1. GitHub 유저의 아이디를 이용하여 고유한 댓글창 URL을 생성합니다.
