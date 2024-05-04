@@ -45,7 +45,10 @@ func init() {
 		fmt.Println("Error connecting to database:", err)
 	}
 
-	db.AutoMigrate(&GitHubUser{}, &Comment{})
+	err = db.AutoMigrate(&GitHubUser{}, &Comment{})
+	if err != nil {
+		fmt.Println("Error migrating database:", err)
+	}
 
 	githubOauthCfg = &oauth2.Config{
 		RedirectURL:  os.Getenv("ORIGIN_URL") + "/api/auth/callback",
