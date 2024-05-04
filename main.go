@@ -14,7 +14,6 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
-	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 	"gorm.io/driver/mysql"
@@ -29,10 +28,6 @@ var (
 )
 
 func init() {
-	if err := godotenv.Load(); err != nil {
-		fmt.Println("Error loading .env file:", err)
-	}
-
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
 	dbUser := os.Getenv("DB_USER")
