@@ -10,10 +10,10 @@ GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 �
 2. 프로필 README에 다음 코드를 추가합니다:
 
     ```markdown
-    [![Comments](https://comment.injunweb.com/api/user/{깃허브 아이디}/svg?theme={테마})](https://comment.injunweb.com/{깃허브 아이디})
+    [![Comments](https://comment.injunweb.com/api/user/{깃허브아이디}/svg?theme={테마})](https://comment.injunweb.com/{깃허브아이디})
     ```
 
-    여기서 `{깃허브 아이디}`는 본인의 깃허브 아이디로 대체해야 하며, `{테마}`는 사용하고자 하는 테마 이름으로 대체되어야 합니다. 가능한 테마 값은 "black", "white", "transparent"입니다.
+    여기서 `{깃허브아이디}`는 본인의 깃허브 아이디로 대체해야 하며, `{테마}`는 사용하고자 하는 테마 이름으로 대체되어야 합니다. 가능한 테마 값은 "black", "white", "transparent"입니다.
 
     예를 들어, 다음과 같이 사용할 수 있습니다:
 
