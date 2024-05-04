@@ -241,7 +241,25 @@ func getUserCommentSVG(c *gin.Context) {
 	var comments []Comment
 	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
 
-	svgContent := generateCommentBox(gitHubUser.GitHubID, comments)
+	theme := c.Query("theme")
+
+	var bgColor, textColor string
+	switch theme {
+	case "black":
+		bgColor = "black"
+		textColor = "white"
+	case "white":
+		bgColor = "white"
+		textColor = "black"
+	case "transparent":
+		bgColor = "transparent"
+		textColor = "gray"
+	default:
+		bgColor = "white"
+		textColor = "black"
+	}
+
+	svgContent := generateCommentBox(gitHubUser.GitHubID, comments, textColor, bgColor)
 
 	c.Writer.Header().Set("Content-Type", "image/svg+xml")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -352,7 +370,7 @@ func escapeHTML(text string) string {
 	return template.HTMLEscapeString(text)
 }
 
-func generateCommentBox(userName string, comments []Comment) string {
+func generateCommentBox(userName string, comments []Comment, textColor, boxColor string) string {
 	const (
 		additionalHeightPerComment = 35
 		commentBoxMargin           = 5
@@ -364,20 +382,20 @@ func generateCommentBox(userName string, comments []Comment) string {
 	height := inputBoxY + additionalHeightPerComment
 
 	svgHeader := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d">`, 400, height)
-	commentBox := fmt.Sprintf(`<rect x="0" y="0" width="%d" height="%d" fill="#00000000" stroke="gray" rx="5" ry="5"/>`, 400, height)
-	userNameText := fmt.Sprintf(`<text x="%d" y="20" font-family="Arial" font-size="16" fill="gray">%s</text>`, commentBoxMargin, userName)
+	commentBox := fmt.Sprintf(`<rect x="0" y="0" width="%d" height="%d" fill="%s" stroke="gray" rx="5" ry="5"/>`, 400, height, boxColor)
+	userNameText := fmt.Sprintf(`<text x="%d" y="20" font-family="Arial" font-size="16" fill="%s">%s</text>`, commentBoxMargin, textColor, userName)
 
 	var commentBoxes []string
 	for i, comment := range comments {
 		commentY := 40 + i*additionalHeightPerComment
-		commentBox := fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="30" fill="#00000000" stroke="gray" rx="5" ry="5"/>`, commentBoxMargin, commentY, 400-2*commentBoxMargin)
-		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="gray">%s: %s</text>`, commentBoxMargin*2, commentY+20, escapeHTML(comment.AuthorID), escapeHTML(comment.Content))
+		commentBox := fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="30" fill="%s" stroke="gray" rx="5" ry="5"/>`, commentBoxMargin, commentY, 400-2*commentBoxMargin, boxColor)
+		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">%s: %s</text>`, commentBoxMargin*2, commentY+20, textColor, escapeHTML(comment.AuthorID), escapeHTML(comment.Content))
 		commentBoxes = append(commentBoxes, commentBox, commentText)
 	}
 
 	svgFooter := "</svg>"
-	inputBox := fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="30" fill="#00000000" stroke="gray" rx="5" ry="5"/>`, commentBoxMargin, inputBoxY, 400-2*commentBoxMargin)
-	inputText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="gray">Enter your comment...</text>`, commentBoxMargin*2, inputBoxY+20)
+	inputBox := fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="30" fill="%s" stroke="gray" rx="5" ry="5"/>`, commentBoxMargin, inputBoxY, 400-2*commentBoxMargin, boxColor)
+	inputText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">Enter your comment...</text>`, commentBoxMargin*2, inputBoxY+20, textColor)
 
 	svgContent := append([]string{svgHeader, commentBox, userNameText}, commentBoxes...)
 	svgContent = append(svgContent, inputBox, inputText, svgFooter)
