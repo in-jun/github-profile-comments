@@ -1,0 +1,19 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    
+    - name: Build and deploy
+      run: |
+        docker-compose down
+        docker-compose build
+        docker-compose up -d
