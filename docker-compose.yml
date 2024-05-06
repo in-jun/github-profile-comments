@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   mysql_db:
@@ -10,7 +10,11 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${DB_USER} -p${DB_PASSWORD}"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -u${DB_USER} -p${DB_PASSWORD}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
