@@ -39,7 +39,9 @@ GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 �
 
 ## 기술 스택:
 
--   Frontend: HTML, CSS, JavaScript
--   Backend: Go, Gin, GORM, MySQL
--   Deployment: Cloudflare Argo Tunnel
--   Other: GitHub OAuth, GitHub API, SVG
+| Category   | Technologies                                                                      |
+| ---------- | --------------------------------------------------------------------------------- |
+| Frontend   | HTML, CSS, JavaScript                                                             |
+| Backend    | Go, Gin, GORM, MySQL                                                              |
+| Deployment | Cloudflare Argo Tunnel, Docker, Docker Compose, GitHub Actions self-hosted runner |
+| Other      | GitHub OAuth, GitHub API, SVG                                                     |
