@@ -22,7 +22,7 @@ import (
 
 var (
 	db               *gorm.DB
-	store            = cookie.NewStore([]byte("32-byte-long-auth-key"))
+	store            = cookie.NewStore([]byte(os.Getenv("SESSION_SECRET")))
 	githubOauthCfg   *oauth2.Config
 	oauthStateString string
 )
