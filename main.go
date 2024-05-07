@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/gin-contrib/sessions"
@@ -143,6 +144,11 @@ func createComment(c *gin.Context) {
 		if len(runes) > 35 {
 			req.Content = string(runes[:35])
 		}
+	}
+
+	if hasZalgo(req.Content) {
+		c.JSON(400, gin.H{"error": "Invalid content"})
+		return
 	}
 
 	var existing Comment
@@ -367,6 +373,11 @@ func handleLogout(c *gin.Context) {
 
 func escapeHTML(text string) string {
 	return template.HTMLEscapeString(text)
+}
+
+func hasZalgo(input string) bool {
+	zalgoPattern := regexp.MustCompile(`[\p{Mn}\p{Me}\p{Mc}]`)
+	return zalgoPattern.MatchString(input)
 }
 
 func generateCommentBox(userName string, comments []Comment, textColor, boxColor string) string {
