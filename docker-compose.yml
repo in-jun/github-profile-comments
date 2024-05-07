@@ -9,6 +9,8 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test:
         [
@@ -47,3 +49,6 @@ services:
       - golang_app
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+
+volumes:
+  mysql_data:
