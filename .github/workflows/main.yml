@@ -34,6 +34,6 @@ jobs:
 
       - name: Build and deploy
         run: |
-          docker-compose down || true
+          # docker-compose down || true
           docker-compose build
           docker-compose up -d
