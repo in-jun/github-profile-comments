@@ -75,6 +75,7 @@ func main() {
 
 	api := router.Group("api")
 	{
+		api.GET("/users", getUsers)
 		api.POST("/user/:username/comments", createComment)
 		api.GET("/user/:username/comments", getComments)
 		api.DELETE("/user/:username/comments", deleteComment)
@@ -98,6 +99,12 @@ func generateStateString() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
+}
+
+func getUsers(c *gin.Context) {
+	var users []GitHubUser
+	db.Find(&users)
+	c.JSON(200, users)
 }
 
 func createComment(c *gin.Context) {
