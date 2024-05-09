@@ -75,12 +75,17 @@ func main() {
 
 	api := router.Group("api")
 	{
-		api.GET("/users", getUsers)
-		api.POST("/user/:username/comments", createComment)
-		api.GET("/user/:username/comments", getComments)
-		api.DELETE("/user/:username/comments", deleteComment)
-		api.GET("/user/:username/svg", getUserCommentSVG)
 		api.GET("/", handleMain)
+		api.GET("/users", getUsers)
+
+		user := api.Group("/user")
+		{
+			user.POST("/:username/comments", createComment)
+			user.GET("/:username/comments", getComments)
+			user.DELETE("/:username/comments", deleteComment)
+			user.GET("/:username/svg", getUserCommentSVG)
+		}
+
 		api.GET("/login", handleLogin)
 		api.GET("/auth/callback", handleCallback)
 		api.GET("/logout", handleLogout)
