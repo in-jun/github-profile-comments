@@ -206,11 +206,11 @@
 
         authButton.addEventListener("click", function () {
             const currentPath = window.location.pathname;
-            window.location.href = "/api/login?current=" + encodeURIComponent(currentPath);
+            window.location.href = "/api/auth/login?current=" + encodeURIComponent(currentPath);
         });
 
         logoutButton.addEventListener("click", function () {
-            fetch("/api/logout", {
+            fetch("/api/auth/logout", {
                 method: 'GET'
             })
                 .then(response => response.json())

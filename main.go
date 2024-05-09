@@ -86,9 +86,12 @@ func main() {
 			user.GET("/:username/svg", getUserCommentSVG)
 		}
 
-		api.GET("/login", handleLogin)
-		api.GET("/auth/callback", handleCallback)
-		api.GET("/logout", handleLogout)
+		auth := api.Group("/auth")
+		{
+			auth.GET("/login", handleLogin)
+			auth.GET("/callback", handleCallback)
+			auth.GET("/logout", handleLogout)
+		}
 	}
 	// Favicon routing
 	router.StaticFile("/favicon.ico", "./favicon.ico")
