@@ -6,7 +6,7 @@ GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 �
 
 ## 사용법:
 
-1. [여기](https://comment.injunweb.com/api/login)로 이동하여 회원가입을 진행합니다.
+1. [여기](https://comment.injunweb.com/api/auth/login)로 이동하여 회원가입을 진행합니다.
 2. 프로필 README에 다음 코드를 추가합니다:
 
     ```markdown
