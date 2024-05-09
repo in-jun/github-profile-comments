@@ -64,14 +64,13 @@ type GitHubUser struct {
 
 type Comment struct {
 	ID              uint   `gorm:"primary_key"`
-	CreatedAt       string `gorm:"autoCreateTime"`
 	ReceiverID      uint   `json:"receiver_id"`
 	AuthorID        string `json:"author_id"`
 	Content         string `json:"content"`
 	LikeCount       int    `json:"like_count"`
-	LikedUserIDs    []uint `json:"liked_user_ids"`
+	LikedUserIDs    []uint `gorm:"type:json" json:"-"`
 	DislikeCount    int    `json:"dislike_count"`
-	DislikedUserIDs []uint `json:"disliked_user_ids"`
+	DislikedUserIDs []uint `gorm:"type:json" json:"-"`
 	IsOwnerLiked    bool   `json:"is_owner_liked"`
 }
 
