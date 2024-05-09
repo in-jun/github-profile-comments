@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gin-contrib/sessions"
@@ -62,10 +63,16 @@ type GitHubUser struct {
 }
 
 type Comment struct {
-	ID         uint   `gorm:"primary_key"`
-	ReceiverID uint   `json:"receiver_id"`
-	AuthorID   string `json:"author_id"`
-	Content    string `json:"content"`
+	ID              uint   `gorm:"primary_key"`
+	CreatedAt       string `gorm:"autoCreateTime"`
+	ReceiverID      uint   `json:"receiver_id"`
+	AuthorID        string `json:"author_id"`
+	Content         string `json:"content"`
+	LikeCount       int    `json:"like_count"`
+	LikedUserIDs    []uint `json:"liked_user_ids"`
+	DislikeCount    int    `json:"dislike_count"`
+	DislikedUserIDs []uint `json:"disliked_user_ids"`
+	IsOwnerLiked    bool   `json:"is_owner_liked"`
 }
 
 func main() {
@@ -92,6 +99,16 @@ func main() {
 			auth.GET("/callback", handleCallback)
 			auth.GET("/logout", handleLogout)
 		}
+
+		like := api.Group("/like")
+		{
+			like.POST("like/:commentID", likeComment)
+			like.POST("remove-like/:commentID", removeLike)
+			like.POST("dislike/:commentID", dislikeComment)
+			like.POST("remove-dislike/:commentID", removeDislike)
+			like.POST("owner-like/:commentID", ownerLikeComment)
+			like.POST("owner-remove-like/:commentID", ownerRemoveLike)
+		}
 	}
 	// Favicon routing
 	router.StaticFile("/favicon.ico", "./favicon.ico")
@@ -101,6 +118,351 @@ func main() {
 	})
 
 	router.Run(":" + os.Getenv("PORT"))
+}
+
+func likeComment(c *gin.Context) {
+	commentID := c.Param("commentID")
+	if commentID == "" {
+		c.JSON(400, gin.H{"error": "Comment ID not provided"})
+		return
+	}
+
+	commentIDUint, err := strconv.ParseUint(commentID, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid Comment ID"})
+		return
+	}
+
+	var comment Comment
+	if err := db.Where(&Comment{ID: uint(commentIDUint)}).First(&comment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+
+	userID := session.Get("github_id")
+	if userID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if comment.AuthorID == gitHubUser.GitHubID {
+		c.JSON(400, gin.H{"error": "You can't like your own comment"})
+		return
+	}
+
+	for _, likedUserID := range comment.LikedUserIDs {
+		if likedUserID == gitHubUser.ID {
+			c.JSON(400, gin.H{"error": "You have already liked this comment"})
+			return
+		}
+	}
+
+	if err := db.Model(&comment).Update("like_count", comment.LikeCount+1).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to like comment"})
+		return
+	}
+
+	if err := db.Model(&comment).Update("liked_user_ids", append(comment.LikedUserIDs, gitHubUser.ID)).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to like comment"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Comment liked"})
+}
+
+func removeLike(c *gin.Context) {
+	commentID := c.Param("commentID")
+	if commentID == "" {
+		c.JSON(400, gin.H{"error": "Comment ID not provided"})
+		return
+	}
+
+	var comment Comment
+	commentIDUint, err := strconv.ParseUint(commentID, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid Comment ID"})
+		return
+	}
+
+	if err := db.Where(&Comment{ID: uint(commentIDUint)}).First(&comment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	userID := session.Get("github_id")
+	if userID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	liked := false
+	for _, likedUserID := range comment.LikedUserIDs {
+		if likedUserID == gitHubUser.ID {
+			liked = true
+			break
+		}
+	}
+
+	if !liked {
+		c.JSON(400, gin.H{"error": "Comment not liked"})
+		return
+	}
+
+	if err := db.Model(&comment).Update("like_count", comment.LikeCount-1).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to remove like"})
+		return
+	}
+
+	updatedLikedUserIDs := make([]uint, 0)
+	for _, likedUserID := range comment.LikedUserIDs {
+		if likedUserID != gitHubUser.ID {
+			updatedLikedUserIDs = append(updatedLikedUserIDs, likedUserID)
+		}
+	}
+
+	if err := db.Model(&comment).Update("liked_user_ids", updatedLikedUserIDs).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to remove like"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Like removed"})
+}
+
+func dislikeComment(c *gin.Context) {
+	commentID := c.Param("commentID")
+	if commentID == "" {
+		c.JSON(400, gin.H{"error": "Comment ID not provided"})
+		return
+	}
+
+	commentIDUint, err := strconv.ParseUint(commentID, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid Comment ID"})
+		return
+	}
+
+	var comment Comment
+	if err := db.Where(&Comment{ID: uint(commentIDUint)}).First(&comment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	userID := session.Get("github_id")
+	if userID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if comment.AuthorID == gitHubUser.GitHubID {
+		c.JSON(400, gin.H{"error": "You can't dislike your own comment"})
+		return
+	}
+
+	for _, dislikedUserID := range comment.DislikedUserIDs {
+		if dislikedUserID == gitHubUser.ID {
+			c.JSON(400, gin.H{"error": "You have already disliked this comment"})
+			return
+		}
+	}
+
+	if err := db.Model(&comment).Update("dislike_count", comment.DislikeCount+1).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to dislike comment"})
+		return
+	}
+
+	if err := db.Model(&comment).Update("disliked_user_ids", append(comment.DislikedUserIDs, gitHubUser.ID)).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to dislike comment"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Comment disliked"})
+}
+
+func removeDislike(c *gin.Context) {
+	commentID := c.Param("commentID")
+	if commentID == "" {
+		c.JSON(400, gin.H{"error": "Comment ID not provided"})
+		return
+	}
+
+	var comment Comment
+	commentIDUint, err := strconv.ParseUint(commentID, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid Comment ID"})
+		return
+	}
+
+	if err := db.Where(&Comment{ID: uint(commentIDUint)}).First(&comment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	userID := session.Get("github_id")
+	if userID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	disliked := false
+	for _, dislikedUserID := range comment.DislikedUserIDs {
+		if dislikedUserID == gitHubUser.ID {
+			disliked = true
+			break
+		}
+	}
+
+	if !disliked {
+		c.JSON(400, gin.H{"error": "Comment not disliked"})
+		return
+	}
+
+	if err := db.Model(&comment).Update("dislike_count", comment.DislikeCount-1).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to remove dislike"})
+		return
+	}
+
+	updatedDislikedUserIDs := make([]uint, 0)
+	for _, dislikedUserID := range comment.DislikedUserIDs {
+		if dislikedUserID != gitHubUser.ID {
+			updatedDislikedUserIDs = append(updatedDislikedUserIDs, dislikedUserID)
+		}
+	}
+
+	if err := db.Model(&comment).Update("disliked_user_ids", updatedDislikedUserIDs).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to remove dislike"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Dislike removed"})
+}
+
+func ownerLikeComment(c *gin.Context) {
+	commentID := c.Param("commentID")
+	if commentID == "" {
+		c.JSON(400, gin.H{"error": "Comment ID not provided"})
+		return
+	}
+
+	commentIDUint, err := strconv.ParseUint(commentID, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid Comment ID"})
+		return
+	}
+
+	var comment Comment
+	if err := db.Where(&Comment{ID: uint(commentIDUint)}).First(&comment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	userID := session.Get("github_id")
+	if userID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if comment.ReceiverID != gitHubUser.ID {
+		c.JSON(400, gin.H{"error": "You can only like your own comment"})
+		return
+	}
+
+	if comment.IsOwnerLiked {
+		c.JSON(400, gin.H{"error": "You have already liked comment"})
+		return
+	}
+
+	if err := db.Model(&comment).Update("is_owner_liked", true).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to like comment"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Comment liked"})
+}
+
+func ownerRemoveLike(c *gin.Context) {
+	commentID := c.Param("commentID")
+	if commentID == "" {
+		c.JSON(400, gin.H{"error": "Comment ID not provided"})
+		return
+	}
+
+	var comment Comment
+	commentIDUint, err := strconv.ParseUint(commentID, 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid Comment ID"})
+		return
+	}
+
+	if err := db.Where(&Comment{ID: uint(commentIDUint)}).First(&comment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	userID := session.Get("github_id")
+	if userID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if comment.ReceiverID != gitHubUser.ID {
+		c.JSON(400, gin.H{"error": "You can only remove like from your own comment"})
+		return
+	}
+
+	if !comment.IsOwnerLiked {
+		c.JSON(400, gin.H{"error": "You have not liked this comment"})
+		return
+	}
+
+	if err := db.Model(&comment).Update("is_owner_liked", false).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to remove like"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Like removed"})
 }
 
 func generateStateString() string {
