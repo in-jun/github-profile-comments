@@ -534,12 +534,14 @@ func createComment(c *gin.Context) {
 	}
 
 	comment := Comment{
-		Content:      escapeHTML(req.Content),
-		ReceiverID:   receiver.ID,
-		AuthorID:     author.GitHubID,
-		LikeCount:    0,
-		DislikeCount: 0,
-		IsOwnerLiked: false,
+		Content:         escapeHTML(req.Content),
+		ReceiverID:      receiver.ID,
+		AuthorID:        author.GitHubID,
+		LikeCount:       0,
+		DislikeCount:    0,
+		IsOwnerLiked:    false,
+		LikedUserIDs:    []uint{},
+		DislikedUserIDs: []uint{},
 	}
 
 	if err := db.Create(&comment).Error; err != nil {
