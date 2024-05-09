@@ -102,12 +102,12 @@ func main() {
 
 		like := api.Group("/like")
 		{
-			like.POST("like/:commentID", likeComment)
-			like.POST("remove-like/:commentID", removeLike)
-			like.POST("dislike/:commentID", dislikeComment)
-			like.POST("remove-dislike/:commentID", removeDislike)
-			like.POST("owner-like/:commentID", ownerLikeComment)
-			like.POST("owner-remove-like/:commentID", ownerRemoveLike)
+			like.POST("/like/:commentID", likeComment)
+			like.POST("/remove-like/:commentID", removeLike)
+			like.POST("/dislike/:commentID", dislikeComment)
+			like.POST("/remove-dislike/:commentID", removeDislike)
+			like.POST("/owner-like/:commentID", ownerLikeComment)
+			like.POST("/owner-remove-like/:commentID", ownerRemoveLike)
 		}
 	}
 	// Favicon routing
