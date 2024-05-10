@@ -164,6 +164,13 @@ func likeComment(c *gin.Context) {
 		}
 	}
 
+	for _, dislikedUserID := range comment.DislikedUserIDs {
+		if dislikedUserID == gitHubUser.ID {
+			c.JSON(400, gin.H{"error": "You have already disliked this comment"})
+			return
+		}
+	}
+
 	if err := db.Model(&comment).Update("like_count", comment.LikeCount+1).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to like comment"})
 		return
@@ -282,6 +289,13 @@ func dislikeComment(c *gin.Context) {
 	for _, dislikedUserID := range comment.DislikedUserIDs {
 		if dislikedUserID == gitHubUser.ID {
 			c.JSON(400, gin.H{"error": "You have already disliked this comment"})
+			return
+		}
+	}
+
+	for _, likedUserID := range comment.LikedUserIDs {
+		if likedUserID == gitHubUser.ID {
+			c.JSON(400, gin.H{"error": "You have already liked this comment"})
 			return
 		}
 	}
