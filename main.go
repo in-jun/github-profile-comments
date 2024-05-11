@@ -67,11 +67,9 @@ type Comment struct {
 	ReceiverID      uint   `json:"receiver_id"`
 	AuthorID        string `json:"author_id"`
 	Content         string `json:"content"`
-	LikeCount       int    `json:"like_count"`
-	LikedUserIDs    []uint `gorm:"type:json" json:"-"`
-	DislikeCount    int    `json:"dislike_count"`
-	DislikedUserIDs []uint `gorm:"type:json" json:"-"`
-	IsOwnerLiked    bool   `json:"is_owner_liked"`
+	LikedUserIDs    string `gorm:"type:json;" json:"liked_user_ids"`
+	DislikedUserIDs string `gorm:"type:json;" json:"disliked_user_ids"`
+	IsOwnerLiked    bool   `json:"is_owner_liked default:false"`
 }
 
 func main() {
@@ -152,31 +150,36 @@ func likeComment(c *gin.Context) {
 		return
 	}
 
-	if comment.AuthorID == gitHubUser.GitHubID {
-		c.JSON(400, gin.H{"error": "You can't like your own comment"})
+	var likedUserIDs []uint
+	if err := json.Unmarshal([]byte(comment.LikedUserIDs), &likedUserIDs); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to unmarshal likedUserIDs"})
 		return
 	}
 
-	for _, likedUserID := range comment.LikedUserIDs {
+	for _, likedUserID := range likedUserIDs {
 		if likedUserID == gitHubUser.ID {
 			c.JSON(400, gin.H{"error": "You have already liked this comment"})
 			return
 		}
 	}
 
-	for _, dislikedUserID := range comment.DislikedUserIDs {
+	var dislikedUserIDs []uint
+	if err := json.Unmarshal([]byte(comment.DislikedUserIDs), &dislikedUserIDs); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to unmarshal dislikedUserIDs"})
+		return
+	}
+
+	for _, dislikedUserID := range dislikedUserIDs {
 		if dislikedUserID == gitHubUser.ID {
 			c.JSON(400, gin.H{"error": "You have already disliked this comment"})
 			return
 		}
 	}
 
-	if err := db.Model(&comment).Update("like_count", comment.LikeCount+1).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to like comment"})
-		return
-	}
+	likedUserIDs = append(likedUserIDs, gitHubUser.ID)
+	likedUserIDsJSON, _ := json.Marshal(likedUserIDs)
 
-	if err := db.Model(&comment).Update("liked_user_ids", append(comment.LikedUserIDs, gitHubUser.ID)).Error; err != nil {
+	if err := db.Model(&comment).Update("liked_user_ids", string(likedUserIDsJSON)).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to like comment"})
 		return
 	}
@@ -216,8 +219,14 @@ func removeLike(c *gin.Context) {
 		return
 	}
 
+	jsonLikedUserIDs := []uint{}
+	if err := json.Unmarshal([]byte(comment.LikedUserIDs), &jsonLikedUserIDs); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to unmarshal likedUserIDs"})
+		return
+	}
+
 	liked := false
-	for _, likedUserID := range comment.LikedUserIDs {
+	for _, likedUserID := range jsonLikedUserIDs {
 		if likedUserID == gitHubUser.ID {
 			liked = true
 			break
@@ -229,19 +238,16 @@ func removeLike(c *gin.Context) {
 		return
 	}
 
-	if err := db.Model(&comment).Update("like_count", comment.LikeCount-1).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to remove like"})
-		return
-	}
-
 	updatedLikedUserIDs := make([]uint, 0)
-	for _, likedUserID := range comment.LikedUserIDs {
+	for _, likedUserID := range jsonLikedUserIDs {
 		if likedUserID != gitHubUser.ID {
 			updatedLikedUserIDs = append(updatedLikedUserIDs, likedUserID)
 		}
 	}
 
-	if err := db.Model(&comment).Update("liked_user_ids", updatedLikedUserIDs).Error; err != nil {
+	jasonUpdatedLikedUserIDs, _ := json.Marshal(updatedLikedUserIDs)
+
+	if err := db.Model(&comment).Update("liked_user_ids", string(jasonUpdatedLikedUserIDs)).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to remove like"})
 		return
 	}
@@ -286,26 +292,36 @@ func dislikeComment(c *gin.Context) {
 		return
 	}
 
-	for _, dislikedUserID := range comment.DislikedUserIDs {
+	jsonDislikedUserIDs := []uint{}
+	if err := json.Unmarshal([]byte(comment.DislikedUserIDs), &jsonDislikedUserIDs); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to unmarshal dislikedUserIDs"})
+		return
+	}
+
+	for _, dislikedUserID := range jsonDislikedUserIDs {
 		if dislikedUserID == gitHubUser.ID {
 			c.JSON(400, gin.H{"error": "You have already disliked this comment"})
 			return
 		}
 	}
 
-	for _, likedUserID := range comment.LikedUserIDs {
+	jsonLikedUserIDs := []uint{}
+	if err := json.Unmarshal([]byte(comment.LikedUserIDs), &jsonLikedUserIDs); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to unmarshal likedUserIDs"})
+		return
+	}
+
+	for _, likedUserID := range jsonLikedUserIDs {
 		if likedUserID == gitHubUser.ID {
 			c.JSON(400, gin.H{"error": "You have already liked this comment"})
 			return
 		}
 	}
 
-	if err := db.Model(&comment).Update("dislike_count", comment.DislikeCount+1).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to dislike comment"})
-		return
-	}
+	dislikedUserIDs := append(jsonDislikedUserIDs, gitHubUser.ID)
+	dislikedUserIDsJSON, _ := json.Marshal(dislikedUserIDs)
 
-	if err := db.Model(&comment).Update("disliked_user_ids", append(comment.DislikedUserIDs, gitHubUser.ID)).Error; err != nil {
+	if err := db.Model(&comment).Update("disliked_user_ids", string(dislikedUserIDsJSON)).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to dislike comment"})
 		return
 	}
@@ -345,8 +361,14 @@ func removeDislike(c *gin.Context) {
 		return
 	}
 
+	jsonDislikedUserIDs := []uint{}
+	if err := json.Unmarshal([]byte(comment.DislikedUserIDs), &jsonDislikedUserIDs); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to unmarshal dislikedUserIDs"})
+		return
+	}
+
 	disliked := false
-	for _, dislikedUserID := range comment.DislikedUserIDs {
+	for _, dislikedUserID := range jsonDislikedUserIDs {
 		if dislikedUserID == gitHubUser.ID {
 			disliked = true
 			break
@@ -358,19 +380,16 @@ func removeDislike(c *gin.Context) {
 		return
 	}
 
-	if err := db.Model(&comment).Update("dislike_count", comment.DislikeCount-1).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to remove dislike"})
-		return
-	}
-
 	updatedDislikedUserIDs := make([]uint, 0)
-	for _, dislikedUserID := range comment.DislikedUserIDs {
+	for _, dislikedUserID := range jsonDislikedUserIDs {
 		if dislikedUserID != gitHubUser.ID {
 			updatedDislikedUserIDs = append(updatedDislikedUserIDs, dislikedUserID)
 		}
 	}
 
-	if err := db.Model(&comment).Update("disliked_user_ids", updatedDislikedUserIDs).Error; err != nil {
+	jsonUpdataedDislikedUserIDs, _ := json.Marshal(updatedDislikedUserIDs)
+
+	if err := db.Model(&comment).Update("disliked_user_ids", jsonUpdataedDislikedUserIDs).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to remove dislike"})
 		return
 	}
@@ -551,11 +570,8 @@ func createComment(c *gin.Context) {
 		Content:         escapeHTML(req.Content),
 		ReceiverID:      receiver.ID,
 		AuthorID:        author.GitHubID,
-		LikeCount:       0,
-		DislikeCount:    0,
-		IsOwnerLiked:    false,
-		LikedUserIDs:    []uint{},
-		DislikedUserIDs: []uint{},
+		LikedUserIDs:    "[]",
+		DislikedUserIDs: "[]",
 	}
 
 	if err := db.Create(&comment).Error; err != nil {
