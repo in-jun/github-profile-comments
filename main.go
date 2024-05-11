@@ -137,7 +137,6 @@ func likeComment(c *gin.Context) {
 	}
 
 	session := sessions.Default(c)
-
 	userID := session.Get("github_id")
 	if userID == nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
@@ -387,9 +386,9 @@ func removeDislike(c *gin.Context) {
 		}
 	}
 
-	jsonUpdataedDislikedUserIDs, _ := json.Marshal(updatedDislikedUserIDs)
+	jsonUpdatedDislikedUserIDs, _ := json.Marshal(updatedDislikedUserIDs)
 
-	if err := db.Model(&comment).Update("disliked_user_ids", jsonUpdataedDislikedUserIDs).Error; err != nil {
+	if err := db.Model(&comment).Update("disliked_user_ids", string(jsonUpdatedDislikedUserIDs)).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to remove dislike"})
 		return
 	}
