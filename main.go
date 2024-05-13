@@ -42,7 +42,7 @@ func init() {
 		fmt.Println("Error connecting to database:", err)
 	}
 
-	err = db.AutoMigrate(&GitHubUser{}, &Comment{})
+	err = db.AutoMigrate(&GitHubUser{}, &Comment{}, &Liked{}, &Disliked{})
 	if err != nil {
 		fmt.Println("Error migrating database:", err)
 	}
@@ -63,13 +63,23 @@ type GitHubUser struct {
 }
 
 type Comment struct {
-	ID              uint   `gorm:"primary_key"`
-	ReceiverID      uint   `json:"receiver_id"`
-	AuthorID        string `json:"author_id"`
-	Content         string `json:"content"`
-	LikedUserIDs    string `gorm:"type:json;" json:"liked_user_ids"`
-	DislikedUserIDs string `gorm:"type:json;" json:"disliked_user_ids"`
-	IsOwnerLiked    bool   `json:"is_owner_liked default:false"`
+	ID           uint   `gorm:"primary_key"`
+	ReceiverID   uint   `json:"receiver_id"`
+	AuthorID     string `json:"author_id"`
+	Content      string `json:"content"`
+	IsOwnerLiked bool   `json:"is_owner_liked default:false"`
+}
+
+type Liked struct {
+	ID        uint `gorm:"primary_key"`
+	CommentID uint
+	UserID    uint
+}
+
+type Disliked struct {
+	ID        uint `gorm:"primary_key"`
+	CommentID uint
+	UserID    uint
 }
 
 func main() {
@@ -149,36 +159,22 @@ func likeComment(c *gin.Context) {
 		return
 	}
 
-	var likedUserIDs []uint
-	if err := json.Unmarshal([]byte(comment.LikedUserIDs), &likedUserIDs); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to unmarshal likedUserIDs"})
+	if comment.AuthorID == gitHubUser.GitHubID {
+		c.JSON(400, gin.H{"error": "You can't like your own comment"})
 		return
 	}
 
-	for _, likedUserID := range likedUserIDs {
-		if likedUserID == gitHubUser.ID {
-			c.JSON(400, gin.H{"error": "You have already liked this comment"})
-			return
-		}
-	}
-
-	var dislikedUserIDs []uint
-	if err := json.Unmarshal([]byte(comment.DislikedUserIDs), &dislikedUserIDs); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to unmarshal dislikedUserIDs"})
+	if err := db.Where(&Liked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).First(&Liked{}).Error; err == nil {
+		c.JSON(400, gin.H{"error": "You have already liked this comment"})
 		return
 	}
 
-	for _, dislikedUserID := range dislikedUserIDs {
-		if dislikedUserID == gitHubUser.ID {
-			c.JSON(400, gin.H{"error": "You have already disliked this comment"})
-			return
-		}
+	if err := db.Where(&Disliked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).First(&Disliked{}).Error; err == nil {
+		c.JSON(400, gin.H{"error": "You have already disliked this comment"})
+		return
 	}
 
-	likedUserIDs = append(likedUserIDs, gitHubUser.ID)
-	likedUserIDsJSON, _ := json.Marshal(likedUserIDs)
-
-	if err := db.Model(&comment).Update("liked_user_ids", string(likedUserIDsJSON)).Error; err != nil {
+	if err := db.Create(&Liked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to like comment"})
 		return
 	}
@@ -218,35 +214,12 @@ func removeLike(c *gin.Context) {
 		return
 	}
 
-	jsonLikedUserIDs := []uint{}
-	if err := json.Unmarshal([]byte(comment.LikedUserIDs), &jsonLikedUserIDs); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to unmarshal likedUserIDs"})
-		return
-	}
-
-	liked := false
-	for _, likedUserID := range jsonLikedUserIDs {
-		if likedUserID == gitHubUser.ID {
-			liked = true
-			break
-		}
-	}
-
-	if !liked {
+	if err := db.Where(&Liked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).First(&Liked{}).Error; err != nil {
 		c.JSON(400, gin.H{"error": "Comment not liked"})
 		return
 	}
 
-	updatedLikedUserIDs := make([]uint, 0)
-	for _, likedUserID := range jsonLikedUserIDs {
-		if likedUserID != gitHubUser.ID {
-			updatedLikedUserIDs = append(updatedLikedUserIDs, likedUserID)
-		}
-	}
-
-	jasonUpdatedLikedUserIDs, _ := json.Marshal(updatedLikedUserIDs)
-
-	if err := db.Model(&comment).Update("liked_user_ids", string(jasonUpdatedLikedUserIDs)).Error; err != nil {
+	if err := db.Where(&Liked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).Delete(&Liked{}).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to remove like"})
 		return
 	}
@@ -291,36 +264,17 @@ func dislikeComment(c *gin.Context) {
 		return
 	}
 
-	jsonDislikedUserIDs := []uint{}
-	if err := json.Unmarshal([]byte(comment.DislikedUserIDs), &jsonDislikedUserIDs); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to unmarshal dislikedUserIDs"})
+	if err := db.Where(&Disliked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).First(&Disliked{}).Error; err == nil {
+		c.JSON(400, gin.H{"error": "You have already disliked this comment"})
 		return
 	}
 
-	for _, dislikedUserID := range jsonDislikedUserIDs {
-		if dislikedUserID == gitHubUser.ID {
-			c.JSON(400, gin.H{"error": "You have already disliked this comment"})
-			return
-		}
-	}
-
-	jsonLikedUserIDs := []uint{}
-	if err := json.Unmarshal([]byte(comment.LikedUserIDs), &jsonLikedUserIDs); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to unmarshal likedUserIDs"})
+	if err := db.Where(&Liked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).First(&Liked{}).Error; err == nil {
+		c.JSON(400, gin.H{"error": "You have already liked this comment"})
 		return
 	}
 
-	for _, likedUserID := range jsonLikedUserIDs {
-		if likedUserID == gitHubUser.ID {
-			c.JSON(400, gin.H{"error": "You have already liked this comment"})
-			return
-		}
-	}
-
-	dislikedUserIDs := append(jsonDislikedUserIDs, gitHubUser.ID)
-	dislikedUserIDsJSON, _ := json.Marshal(dislikedUserIDs)
-
-	if err := db.Model(&comment).Update("disliked_user_ids", string(dislikedUserIDsJSON)).Error; err != nil {
+	if err := db.Create(&Disliked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to dislike comment"})
 		return
 	}
@@ -360,35 +314,12 @@ func removeDislike(c *gin.Context) {
 		return
 	}
 
-	jsonDislikedUserIDs := []uint{}
-	if err := json.Unmarshal([]byte(comment.DislikedUserIDs), &jsonDislikedUserIDs); err != nil {
-		c.JSON(500, gin.H{"error": "Failed to unmarshal dislikedUserIDs"})
-		return
-	}
-
-	disliked := false
-	for _, dislikedUserID := range jsonDislikedUserIDs {
-		if dislikedUserID == gitHubUser.ID {
-			disliked = true
-			break
-		}
-	}
-
-	if !disliked {
+	if err := db.Where(&Disliked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).First(&Disliked{}).Error; err != nil {
 		c.JSON(400, gin.H{"error": "Comment not disliked"})
 		return
 	}
 
-	updatedDislikedUserIDs := make([]uint, 0)
-	for _, dislikedUserID := range jsonDislikedUserIDs {
-		if dislikedUserID != gitHubUser.ID {
-			updatedDislikedUserIDs = append(updatedDislikedUserIDs, dislikedUserID)
-		}
-	}
-
-	jsonUpdatedDislikedUserIDs, _ := json.Marshal(updatedDislikedUserIDs)
-
-	if err := db.Model(&comment).Update("disliked_user_ids", string(jsonUpdatedDislikedUserIDs)).Error; err != nil {
+	if err := db.Where(&Disliked{CommentID: uint(commentIDUint), UserID: gitHubUser.ID}).Delete(&Disliked{}).Error; err != nil {
 		c.JSON(500, gin.H{"error": "Failed to remove dislike"})
 		return
 	}
@@ -566,11 +497,9 @@ func createComment(c *gin.Context) {
 	}
 
 	comment := Comment{
-		Content:         escapeHTML(req.Content),
-		ReceiverID:      receiver.ID,
-		AuthorID:        author.GitHubID,
-		LikedUserIDs:    "[]",
-		DislikedUserIDs: "[]",
+		Content:    escapeHTML(req.Content),
+		ReceiverID: receiver.ID,
+		AuthorID:   author.GitHubID,
 	}
 
 	if err := db.Create(&comment).Error; err != nil {
