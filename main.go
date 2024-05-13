@@ -127,6 +127,283 @@ func main() {
 	router.Run(":" + os.Getenv("PORT"))
 }
 
+func handleMain(c *gin.Context) {
+	session := sessions.Default(c)
+	githubID := session.Get("github_id")
+	if githubID != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"user_id":   githubID.(string),
+			"logged_in": true,
+		})
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"user_id":   "Not logged in",
+			"logged_in": false,
+		})
+	}
+}
+
+func getUsers(c *gin.Context) {
+	var users []GitHubUser
+	db.Find(&users)
+	c.JSON(200, users)
+}
+
+func createComment(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(400, gin.H{"error": "Username not provided"})
+		return
+	}
+
+	var receiver GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: username}).First(&receiver).Error; err != nil {
+		c.JSON(404, gin.H{"error": "GitHub user not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	authorID := session.Get("github_id")
+	if authorID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var author GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: authorID.(string)}).First(&author).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Content == "" {
+		c.JSON(400, gin.H{"error": "Content not provided"})
+		return
+	}
+
+	if len(req.Content) > 35 {
+		runes := []rune(req.Content)
+		if len(runes) > 35 {
+			req.Content = string(runes[:35])
+		}
+	}
+
+	if hasZalgo(req.Content) {
+		c.JSON(400, gin.H{"error": "Invalid content"})
+		return
+	}
+
+	var existing Comment
+	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.GitHubID}).First(&existing).Error; err == nil {
+		c.JSON(400, gin.H{"error": "User already has a comment"})
+		return
+	}
+
+	comment := Comment{
+		Content:    escapeHTML(req.Content),
+		ReceiverID: receiver.ID,
+		AuthorID:   author.GitHubID,
+	}
+
+	if err := db.Create(&comment).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to create comment"})
+		return
+	}
+
+	c.JSON(201, comment)
+}
+
+func getComments(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(400, gin.H{"error": "Username not provided"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: username}).First(&gitHubUser).Error; err != nil {
+		c.JSON(404, gin.H{"error": "GitHub user not found"})
+		return
+	}
+
+	var comments []Comment
+	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
+	c.JSON(200, comments)
+}
+
+func deleteComment(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(400, gin.H{"error": "Username not provided"})
+		return
+	}
+
+	var receiver GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: username}).First(&receiver).Error; err != nil {
+		c.JSON(404, gin.H{"error": "GitHub user not found"})
+		return
+	}
+
+	session := sessions.Default(c)
+	authorID := session.Get("github_id")
+	if authorID == nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var author GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: authorID.(string)}).First(&author).Error; err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var existing Comment
+	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.GitHubID}).First(&existing).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Comment not found"})
+		return
+	}
+
+	if err := db.Delete(&existing).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to delete comment"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Comment deleted"})
+}
+
+func getUserCommentSVG(c *gin.Context) {
+	username := c.Param("username")
+	if username == "" {
+		c.JSON(400, gin.H{"error": "Username not provided"})
+		return
+	}
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: username}).First(&gitHubUser).Error; err != nil {
+		c.JSON(404, gin.H{"error": "GitHub user not found"})
+		return
+	}
+
+	var comments []Comment
+	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
+
+	theme := c.Query("theme")
+
+	var bgColor, textColor string
+	switch theme {
+	case "black":
+		bgColor = "black"
+		textColor = "white"
+	case "white":
+		bgColor = "white"
+		textColor = "black"
+	case "transparent":
+		bgColor = "transparent"
+		textColor = "gray"
+	default:
+		bgColor = "white"
+		textColor = "black"
+	}
+
+	svgContent := generateCommentBox(gitHubUser.GitHubID, comments, textColor, bgColor)
+
+	c.Writer.Header().Set("Content-Type", "image/svg+xml")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.String(http.StatusOK, svgContent)
+}
+
+func handleLogin(c *gin.Context) {
+	redirectPath := c.Query("current")
+
+	githubOauthConfig := *githubOauthCfg
+
+	if redirectPath != "" {
+		githubOauthConfig.RedirectURL += "?current=" + redirectPath
+	}
+
+	loginURL := githubOauthConfig.AuthCodeURL(oauthStateString)
+	c.Redirect(http.StatusTemporaryRedirect, loginURL)
+}
+
+func handleCallback(c *gin.Context) {
+	state := c.Query("state")
+	if state != oauthStateString {
+		c.AbortWithError(http.StatusUnauthorized, fmt.Errorf("invalid oauth state"))
+		return
+	}
+
+	code := c.Query("code")
+	token, err := githubOauthCfg.Exchange(c, code)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	client := githubOauthCfg.Client(c, token)
+	resp, err := client.Get("https://api.github.com/user")
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var user map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&user)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	githubID, ok := user["login"].(string)
+	if !ok {
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("unable to get GitHub ID"))
+		return
+	}
+
+	session := sessions.Default(c)
+	session.Set("github_id", githubID)
+	session.Save()
+
+	var gitHubUser GitHubUser
+	if err := db.Where(&GitHubUser{GitHubID: githubID}).First(&gitHubUser).Error; err != nil {
+		gitHubUser = GitHubUser{
+			GitHubID: githubID,
+		}
+		if err := db.Create(&gitHubUser).Error; err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	redirectPath := c.Query("current")
+	if redirectPath != "" {
+		c.Redirect(http.StatusFound, os.Getenv("ORIGIN_URL")+redirectPath)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Logged in successfully",
+		"github_id": githubID,
+	})
+}
+
+func handleLogout(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Clear()
+	session.Save()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logged out",
+	})
+}
+
 func likeComment(c *gin.Context) {
 	commentID := c.Param("commentID")
 	if commentID == "" {
@@ -431,283 +708,6 @@ func generateStateString() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.URLEncoding.EncodeToString(b)
-}
-
-func getUsers(c *gin.Context) {
-	var users []GitHubUser
-	db.Find(&users)
-	c.JSON(200, users)
-}
-
-func createComment(c *gin.Context) {
-	username := c.Param("username")
-	if username == "" {
-		c.JSON(400, gin.H{"error": "Username not provided"})
-		return
-	}
-
-	var receiver GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&receiver).Error; err != nil {
-		c.JSON(404, gin.H{"error": "GitHub user not found"})
-		return
-	}
-
-	session := sessions.Default(c)
-	authorID := session.Get("github_id")
-	if authorID == nil {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	var author GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: authorID.(string)}).First(&author).Error; err != nil {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	var req struct {
-		Content string `json:"content"`
-	}
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	if req.Content == "" {
-		c.JSON(400, gin.H{"error": "Content not provided"})
-		return
-	}
-
-	if len(req.Content) > 35 {
-		runes := []rune(req.Content)
-		if len(runes) > 35 {
-			req.Content = string(runes[:35])
-		}
-	}
-
-	if hasZalgo(req.Content) {
-		c.JSON(400, gin.H{"error": "Invalid content"})
-		return
-	}
-
-	var existing Comment
-	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.GitHubID}).First(&existing).Error; err == nil {
-		c.JSON(400, gin.H{"error": "User already has a comment"})
-		return
-	}
-
-	comment := Comment{
-		Content:    escapeHTML(req.Content),
-		ReceiverID: receiver.ID,
-		AuthorID:   author.GitHubID,
-	}
-
-	if err := db.Create(&comment).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create comment"})
-		return
-	}
-
-	c.JSON(201, comment)
-}
-
-func getComments(c *gin.Context) {
-	username := c.Param("username")
-	if username == "" {
-		c.JSON(400, gin.H{"error": "Username not provided"})
-		return
-	}
-
-	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&gitHubUser).Error; err != nil {
-		c.JSON(404, gin.H{"error": "GitHub user not found"})
-		return
-	}
-
-	var comments []Comment
-	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
-	c.JSON(200, comments)
-}
-
-func deleteComment(c *gin.Context) {
-	username := c.Param("username")
-	if username == "" {
-		c.JSON(400, gin.H{"error": "Username not provided"})
-		return
-	}
-
-	var receiver GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&receiver).Error; err != nil {
-		c.JSON(404, gin.H{"error": "GitHub user not found"})
-		return
-	}
-
-	session := sessions.Default(c)
-	authorID := session.Get("github_id")
-	if authorID == nil {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	var author GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: authorID.(string)}).First(&author).Error; err != nil {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	var existing Comment
-	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.GitHubID}).First(&existing).Error; err != nil {
-		c.JSON(404, gin.H{"error": "Comment not found"})
-		return
-	}
-
-	if err := db.Delete(&existing).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to delete comment"})
-		return
-	}
-
-	c.JSON(200, gin.H{"message": "Comment deleted"})
-}
-
-func getUserCommentSVG(c *gin.Context) {
-	username := c.Param("username")
-	if username == "" {
-		c.JSON(400, gin.H{"error": "Username not provided"})
-		return
-	}
-
-	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&gitHubUser).Error; err != nil {
-		c.JSON(404, gin.H{"error": "GitHub user not found"})
-		return
-	}
-
-	var comments []Comment
-	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
-
-	theme := c.Query("theme")
-
-	var bgColor, textColor string
-	switch theme {
-	case "black":
-		bgColor = "black"
-		textColor = "white"
-	case "white":
-		bgColor = "white"
-		textColor = "black"
-	case "transparent":
-		bgColor = "transparent"
-		textColor = "gray"
-	default:
-		bgColor = "white"
-		textColor = "black"
-	}
-
-	svgContent := generateCommentBox(gitHubUser.GitHubID, comments, textColor, bgColor)
-
-	c.Writer.Header().Set("Content-Type", "image/svg+xml")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.String(http.StatusOK, svgContent)
-}
-
-func handleMain(c *gin.Context) {
-	session := sessions.Default(c)
-	githubID := session.Get("github_id")
-	if githubID != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"user_id":   githubID.(string),
-			"logged_in": true,
-		})
-	} else {
-		c.JSON(http.StatusOK, gin.H{
-			"user_id":   "Not logged in",
-			"logged_in": false,
-		})
-	}
-}
-
-func handleLogin(c *gin.Context) {
-	redirectPath := c.Query("current")
-
-	githubOauthConfig := *githubOauthCfg
-
-	if redirectPath != "" {
-		githubOauthConfig.RedirectURL += "?current=" + redirectPath
-	}
-
-	loginURL := githubOauthConfig.AuthCodeURL(oauthStateString)
-	c.Redirect(http.StatusTemporaryRedirect, loginURL)
-}
-
-func handleCallback(c *gin.Context) {
-	state := c.Query("state")
-	if state != oauthStateString {
-		c.AbortWithError(http.StatusUnauthorized, fmt.Errorf("invalid oauth state"))
-		return
-	}
-
-	code := c.Query("code")
-	token, err := githubOauthCfg.Exchange(c, code)
-	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-
-	client := githubOauthCfg.Client(c, token)
-	resp, err := client.Get("https://api.github.com/user")
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	var user map[string]interface{}
-	err = json.NewDecoder(resp.Body).Decode(&user)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
-	githubID, ok := user["login"].(string)
-	if !ok {
-		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("unable to get GitHub ID"))
-		return
-	}
-
-	session := sessions.Default(c)
-	session.Set("github_id", githubID)
-	session.Save()
-
-	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: githubID}).First(&gitHubUser).Error; err != nil {
-		gitHubUser = GitHubUser{
-			GitHubID: githubID,
-		}
-		if err := db.Create(&gitHubUser).Error; err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-	}
-
-	redirectPath := c.Query("current")
-	if redirectPath != "" {
-		c.Redirect(http.StatusFound, os.Getenv("ORIGIN_URL")+redirectPath)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message":   "Logged in successfully",
-		"github_id": githubID,
-	})
-}
-
-func handleLogout(c *gin.Context) {
-	session := sessions.Default(c)
-	session.Clear()
-	session.Save()
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Logged out",
-	})
 }
 
 func escapeHTML(text string) string {
