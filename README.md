@@ -76,6 +76,7 @@ erDiagram
     }
 
     GITHUBUSER ||--o{ COMMENT : "writes"
+    GITHUBUSER ||--o{ COMMENT : "receives"
     GITHUBUSER ||--o{ LIKED : "likes"
     GITHUBUSER ||--o{ DISLIKED : "dislikes"
     COMMENT ||--o{ LIKED : "has"
