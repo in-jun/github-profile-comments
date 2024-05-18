@@ -45,3 +45,39 @@ GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 �
 | Backend    | Go, Gin, GORM, MySQL                                                              |
 | Deployment | Cloudflare Argo Tunnel, Docker, Docker Compose, GitHub Actions self-hosted runner |
 | Other      | GitHub OAuth, GitHub API, SVG                                                     |
+
+## ER 다이어그램:
+
+```mermaid
+erDiagram
+    GITHUBUSER {
+        uint ID PK
+        string GitHubID
+    }
+
+    COMMENT {
+        uint ID PK
+        uint ReceiverID FK
+        string AuthorID FK
+        string Content
+        bool IsOwnerLiked
+    }
+
+    LIKED {
+        uint ID PK
+        uint CommentID FK
+        uint UserID FK
+    }
+
+    DISLIKED {
+        uint ID PK
+        uint CommentID FK
+        uint UserID FK
+    }
+
+    GITHUBUSER ||--o{ COMMENT : "writes"
+    GITHUBUSER ||--o{ LIKED : "likes"
+    GITHUBUSER ||--o{ DISLIKED : "dislikes"
+    COMMENT ||--o{ LIKED : "has"
+    COMMENT ||--o{ DISLIKED : "has"
+```
