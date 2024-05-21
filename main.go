@@ -131,9 +131,15 @@ func main() {
 func handleMain(c *gin.Context) {
 	session := sessions.Default(c)
 	githubID := session.Get("github_id")
+
 	if githubID != nil {
+		var gitHubUser GitHubUser
+		if err := db.Where(&GitHubUser{GitHubID: githubID.(float64)}).First(&gitHubUser).Error; err != nil {
+			c.JSON(500, gin.H{"error": "Failed to get GitHub login"})
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"user_id":   githubID.(float64),
+			"user_id":   gitHubUser.GitHubLogin,
 			"logged_in": true,
 		})
 	} else {
@@ -217,8 +223,6 @@ func createComment(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to create comment"})
 		return
 	}
-
-	c.JSON(201, comment)
 }
 
 func getComments(c *gin.Context) {
@@ -234,9 +238,59 @@ func getComments(c *gin.Context) {
 		return
 	}
 
+	session := sessions.Default(c)
+	userID := session.Get("github_id")
+
+	var user GitHubUser
+	isLoggedIn := userID != nil && db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&user).Error == nil
+
+	type CommentResponse struct {
+		ID           uint   `json:"id"`
+		Author       string `json:"author"`
+		Content      string `json:"content"`
+		IsOwnerLiked bool   `json:"is_owner_liked"`
+		IsLiked      bool   `json:"is_liked"`
+		IsDisliked   bool   `json:"is_disliked"`
+		Likes        int    `json:"likes"`
+		Dislikes     int    `json:"dislikes"`
+	}
+
 	var comments []Comment
 	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
-	c.JSON(200, comments)
+
+	commentResponses := make([]CommentResponse, 0, len(comments))
+	for _, comment := range comments {
+		var author GitHubUser
+		if err := db.First(&author, comment.AuthorID).Error; err != nil {
+			fmt.Println("Error getting GitHub login:", err)
+			continue
+		}
+
+		var likes, dislikes []Liked
+		db.Where(&Liked{CommentID: comment.ID}).Find(&likes)
+		db.Where(&Disliked{CommentID: comment.ID}).Find(&dislikes)
+
+		isLiked := false
+		isDisliked := false
+		if isLoggedIn {
+			db.Where(&Liked{CommentID: comment.ID, UserID: user.ID}).First(&Liked{})
+			isLiked = db.Where(&Liked{CommentID: comment.ID, UserID: user.ID}).First(&Liked{}).Error == nil
+			isDisliked = db.Where(&Disliked{CommentID: comment.ID, UserID: user.ID}).First(&Disliked{}).Error == nil
+		}
+
+		commentResponses = append(commentResponses, CommentResponse{
+			ID:           comment.ID,
+			Author:       author.GitHubLogin,
+			Content:      comment.Content,
+			IsOwnerLiked: comment.IsOwnerLiked,
+			IsLiked:      isLiked,
+			IsDisliked:   isDisliked,
+			Likes:        len(likes),
+			Dislikes:     len(dislikes),
+		})
+	}
+
+	c.JSON(200, commentResponses)
 }
 
 func deleteComment(c *gin.Context) {
@@ -390,6 +444,7 @@ func handleCallback(c *gin.Context) {
 				return
 			}
 		}
+	}
 
 	redirectPath := c.Query("current")
 	if redirectPath != "" {
