@@ -7,8 +7,8 @@ GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 �
 ## 사용법:
 
 1. [여기](https://comment.injunweb.com/api/auth/login)로 이동하여 회원가입을 진행합니다.
-    > 1. `{"github_id":123456789,"message":"Logged in successfully"}` 이러한 응답이 나오면 성공적으로 로그인이 된 것입니다.
-    > 2. 성공적으로 로그인 된 경우 창을 닫고 다음 단계로 넘어갑니다.
+    > - `{"github_id":123456789,"message":"Logged in successfully"}` 이러한 응답이 나오면 성공적으로 로그인이 된 것입니다.
+    > - 성공적으로 로그인 된 경우 창을 닫고 다음 단계로 넘어갑니다.
 2. 프로필 README에 다음 코드를 추가합니다:
 
     ```markdown
