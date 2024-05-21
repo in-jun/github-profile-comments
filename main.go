@@ -58,9 +58,9 @@ func init() {
 }
 
 type GitHubUser struct {
-	ID          uint   `gorm:"primary_key"`
-	GitHubID    int    `json:"github_id"`
-	GitHubLogin string `json:"github_login"`
+	ID          uint    `gorm:"primary_key"`
+	GitHubID    float64 `json:"github_id"`
+	GitHubLogin string  `json:"github_login"`
 }
 
 type Comment struct {
@@ -133,7 +133,7 @@ func handleMain(c *gin.Context) {
 	githubID := session.Get("github_id")
 	if githubID != nil {
 		c.JSON(http.StatusOK, gin.H{
-			"user_id":   githubID.(string),
+			"user_id":   githubID.(float64),
 			"logged_in": true,
 		})
 	} else {
@@ -171,7 +171,7 @@ func createComment(c *gin.Context) {
 	}
 
 	var author GitHubUser
-	if err := db.Where(&GitHubUser{GitHubLogin: authorID.(string)}).First(&author).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: authorID.(float64)}).First(&author).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -260,7 +260,7 @@ func deleteComment(c *gin.Context) {
 	}
 
 	var author GitHubUser
-	if err := db.Where(&GitHubUser{GitHubLogin: authorID.(string)}).First(&author).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: authorID.(float64)}).First(&author).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -363,7 +363,7 @@ func handleCallback(c *gin.Context) {
 	}
 
 	githubLogin, ok1 := user["login"].(string)
-	githubID, ok2 := user["id"].(int)
+	githubID, ok2 := user["id"].(float64)
 	if !ok1 || !ok2 {
 		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("failed to get GitHub user info"))
 		return
@@ -440,7 +440,7 @@ func likeComment(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -495,7 +495,7 @@ func removeLike(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -540,7 +540,7 @@ func dislikeComment(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -595,7 +595,7 @@ func removeDislike(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -640,7 +640,7 @@ func ownerLikeComment(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -690,7 +690,7 @@ func ownerRemoveLike(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
