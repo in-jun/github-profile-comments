@@ -384,12 +384,12 @@ func handleCallback(c *gin.Context) {
 			return
 		}
 	} else {
-		gitHubUser.GitHubLogin = githubLogin
-		if err := db.Save(&gitHubUser).Error; err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
-			return
+		if gitHubUser.GitHubLogin != githubLogin {
+			if err := db.Model(&gitHubUser).Update("github_login", githubLogin).Error; err != nil {
+				c.AbortWithError(http.StatusInternalServerError, err)
+				return
+			}
 		}
-	}
 
 	redirectPath := c.Query("current")
 	if redirectPath != "" {
