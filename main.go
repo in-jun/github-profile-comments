@@ -58,14 +58,15 @@ func init() {
 }
 
 type GitHubUser struct {
-	ID       uint   `gorm:"primary_key"`
-	GitHubID string `json:"github_id"`
+	ID          uint   `gorm:"primary_key"`
+	GitHubID    int    `json:"github_id"`
+	GitHubLogin string `json:"github_login"`
 }
 
 type Comment struct {
 	ID           uint   `gorm:"primary_key"`
 	ReceiverID   uint   `json:"receiver_id"`
-	AuthorID     string `json:"author_id"`
+	AuthorID     uint   `json:"author_id"`
 	Content      string `json:"content"`
 	IsOwnerLiked bool   `json:"is_owner_liked default:false"`
 }
@@ -157,7 +158,7 @@ func createComment(c *gin.Context) {
 	}
 
 	var receiver GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&receiver).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubLogin: username}).First(&receiver).Error; err != nil {
 		c.JSON(404, gin.H{"error": "GitHub user not found"})
 		return
 	}
@@ -170,7 +171,7 @@ func createComment(c *gin.Context) {
 	}
 
 	var author GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: authorID.(string)}).First(&author).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubLogin: authorID.(string)}).First(&author).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -201,15 +202,15 @@ func createComment(c *gin.Context) {
 	}
 
 	var existing Comment
-	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.GitHubID}).First(&existing).Error; err == nil {
+	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.ID}).First(&existing).Error; err == nil {
 		c.JSON(400, gin.H{"error": "User already has a comment"})
 		return
 	}
 
 	comment := Comment{
-		Content:    escapeHTML(req.Content),
+		AuthorID:   author.ID,
 		ReceiverID: receiver.ID,
-		AuthorID:   author.GitHubID,
+		Content:    escapeHTML(req.Content),
 	}
 
 	if err := db.Create(&comment).Error; err != nil {
@@ -228,7 +229,7 @@ func getComments(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubLogin: username}).First(&gitHubUser).Error; err != nil {
 		c.JSON(404, gin.H{"error": "GitHub user not found"})
 		return
 	}
@@ -246,7 +247,7 @@ func deleteComment(c *gin.Context) {
 	}
 
 	var receiver GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&receiver).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubLogin: username}).First(&receiver).Error; err != nil {
 		c.JSON(404, gin.H{"error": "GitHub user not found"})
 		return
 	}
@@ -259,13 +260,13 @@ func deleteComment(c *gin.Context) {
 	}
 
 	var author GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: authorID.(string)}).First(&author).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubLogin: authorID.(string)}).First(&author).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
 
 	var existing Comment
-	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.GitHubID}).First(&existing).Error; err != nil {
+	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.ID}).First(&existing).Error; err != nil {
 		c.JSON(404, gin.H{"error": "Comment not found"})
 		return
 	}
@@ -286,7 +287,7 @@ func getUserCommentSVG(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: username}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubLogin: username}).First(&gitHubUser).Error; err != nil {
 		c.JSON(404, gin.H{"error": "GitHub user not found"})
 		return
 	}
@@ -312,7 +313,7 @@ func getUserCommentSVG(c *gin.Context) {
 		textColor = "black"
 	}
 
-	svgContent := generateCommentBox(gitHubUser.GitHubID, comments, textColor, bgColor)
+	svgContent := generateCommentBox(gitHubUser.GitHubLogin, comments, textColor, bgColor)
 
 	c.Writer.Header().Set("Content-Type", "image/svg+xml")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -361,9 +362,10 @@ func handleCallback(c *gin.Context) {
 		return
 	}
 
-	githubID, ok := user["login"].(string)
-	if !ok {
-		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("unable to get GitHub ID"))
+	githubLogin, ok1 := user["login"].(string)
+	githubID, ok2 := user["id"].(int)
+	if !ok1 || !ok2 {
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("failed to get GitHub user info"))
 		return
 	}
 
@@ -374,9 +376,16 @@ func handleCallback(c *gin.Context) {
 	var gitHubUser GitHubUser
 	if err := db.Where(&GitHubUser{GitHubID: githubID}).First(&gitHubUser).Error; err != nil {
 		gitHubUser = GitHubUser{
-			GitHubID: githubID,
+			GitHubID:    githubID,
+			GitHubLogin: githubLogin,
 		}
 		if err := db.Create(&gitHubUser).Error; err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+	} else {
+		gitHubUser.GitHubLogin = githubLogin
+		if err := db.Save(&gitHubUser).Error; err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
@@ -431,12 +440,12 @@ func likeComment(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	if comment.AuthorID == gitHubUser.GitHubID {
+	if comment.AuthorID == gitHubUser.ID {
 		c.JSON(400, gin.H{"error": "You can't like your own comment"})
 		return
 	}
@@ -486,7 +495,7 @@ func removeLike(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -531,12 +540,12 @@ func dislikeComment(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	if comment.AuthorID == gitHubUser.GitHubID {
+	if comment.AuthorID == gitHubUser.ID {
 		c.JSON(400, gin.H{"error": "You can't dislike your own comment"})
 		return
 	}
@@ -586,7 +595,7 @@ func removeDislike(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -631,7 +640,7 @@ func ownerLikeComment(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -681,7 +690,7 @@ func ownerRemoveLike(c *gin.Context) {
 	}
 
 	var gitHubUser GitHubUser
-	if err := db.Where(&GitHubUser{GitHubID: userID.(string)}).First(&gitHubUser).Error; err != nil {
+	if err := db.Where(&GitHubUser{GitHubID: userID.(int)}).First(&gitHubUser).Error; err != nil {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -736,9 +745,15 @@ func generateCommentBox(userName string, comments []Comment, textColor, boxColor
 
 	var commentBoxes []string
 	for i, comment := range comments {
+		var githubUser GitHubUser
+		err := db.First(&githubUser, comment.AuthorID).Error
+		if err != nil {
+			fmt.Println("Error getting GitHub login:", err)
+		}
+
 		commentY := 40 + i*additionalHeightPerComment
 		commentBox := fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="30" fill="%s" stroke="%s" rx="5" ry="5"/>`, commentBoxMargin, commentY, 400-2*commentBoxMargin, boxColor, textColor)
-		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">%s: %s</text>`, commentBoxMargin*2, commentY+20, textColor, escapeHTML(comment.AuthorID), escapeHTML(comment.Content))
+		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">%s: %s</text>`, commentBoxMargin*2, commentY+20, textColor, escapeHTML(githubUser.GitHubLogin), escapeHTML(comment.Content))
 		commentBoxes = append(commentBoxes, commentBox, commentText)
 	}
 

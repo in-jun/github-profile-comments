@@ -52,13 +52,14 @@ GitHub 프로필에 댓글 기능을 추가하여 사용자들이 프로필에 �
 erDiagram
     GITHUBUSER {
         uint ID PK
-        string GitHubID "github ouath에서 받아온 깃허브ID"
+        string GitHubID "GitHub OAuth에서 받아온 깃허브ID"
+        string GitHubLogin "GitHub 사용자 로그인"
     }
 
     COMMENT {
         uint ID PK
         uint ReceiverID FK "이 댓글을 받는 사용자의 ID입니다."
-        string AuthorID FK "이 댓글을 쓴 사용자의 ID입니다."
+        uint AuthorID FK "이 댓글을 쓴 사용자의 ID입니다."
         string Content
         bool IsOwnerLiked "이 댓글을 받는 사용자가 이 댓글을 좋아하는지 여부"
     }
