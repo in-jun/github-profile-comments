@@ -223,6 +223,8 @@ func createComment(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to create comment"})
 		return
 	}
+
+	c.JSON(200, gin.H{"message": "Comment created"})
 }
 
 func getComments(c *gin.Context) {
