@@ -811,7 +811,7 @@ func generateCommentBox(userName string, comments []Comment, textColor, boxColor
 
 		commentY := 40 + i*additionalHeightPerComment
 		commentBox := fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="30" fill="%s" stroke="%s" rx="5" ry="5"/>`, commentBoxMargin, commentY, 400-2*commentBoxMargin, boxColor, textColor)
-		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">%s: %s</text>`, commentBoxMargin*2, commentY+20, textColor, escapeHTML(githubUser.GitHubLogin), escapeHTML(comment.Content))
+		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">%s: %s</text>`, commentBoxMargin*2, commentY+20, textColor, escapeHTML(githubUser.GitHubLogin), comment.Content)
 		commentBoxes = append(commentBoxes, commentBox, commentText)
 	}
 
