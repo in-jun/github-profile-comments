@@ -268,8 +268,9 @@ func getComments(c *gin.Context) {
 			continue
 		}
 
-		var likes, dislikes []Liked
+		var likes []Liked
 		db.Where(&Liked{CommentID: comment.ID}).Find(&likes)
+		var dislikes []Disliked
 		db.Where(&Disliked{CommentID: comment.ID}).Find(&dislikes)
 
 		isLiked := false
