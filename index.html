@@ -14,7 +14,7 @@
         }
 
         .container {
-            max-width: 600px;
+            max-width: 750px;
             margin: 20px auto;
             padding: 20px;
             background-color: #fff;
@@ -50,18 +50,70 @@
             border-radius: 5px;
             position: relative;
             overflow: hidden;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
         }
 
         .deleteButton {
-            position: absolute;
-            top: 5px;
-            right: 5px;
             background-color: #ff3333;
             color: #fff;
             border: none;
             border-radius: 3px;
             padding: 3px 5px;
             cursor: pointer;
+            margin-left: 5px;
+        }
+
+        .likeButton,
+        .dislikeButton {
+            padding: 3px;
+            background-color: #0000007e;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 1px;
+        }
+
+
+        .removeLikeButton,
+        .removeDislikeButton {
+            padding: 5px;
+            background-color: #000000;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 1px;
+        }
+
+        .ownerLikeButton {
+            padding: 3px;
+            background-color: #0000007e;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 1px;
+        }
+
+        .removeOwnerLikeButton {
+            padding: 3px;
+            background-color: #000000;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 1px;
+        }
+
+        button:hover {
+            background-color: #55555555;
         }
 
         #commentInput {
@@ -112,11 +164,11 @@
                     if (data.logged_in) {
                         authStatus.innerText = "Logged in as: " + data.user_id;
                         updateUI(true);
+                        loggedInUser = data.user_id;
                     } else {
                         authStatus.innerText = "Not logged in";
                         updateUI(false);
                     }
-                    loggedInUser = data.user_id;
                     getComments();
                 })
                 .catch(error => {
@@ -138,8 +190,28 @@
                     data.forEach(comment => {
                         const commentBox = document.createElement('div');
                         commentBox.classList.add('comment');
-                        const deleteButton = (loggedInUser === comment.author_id) ? `<button onclick="deleteComment('${username}')" class="deleteButton">Delete</button>` : '';
-                        commentBox.innerHTML = `${comment.author_id}: ${comment.content} ${deleteButton}`;
+
+                        const likeButton = (loggedInUser === null || loggedInUser === comment.author) ? `👍 ${comment.likes}` : `<button onclick="likeComment('${comment.id}', ${comment.is_disliked})" class="likeButton">👍 ${comment.likes}</button>`;
+                        const dislikeButton = (loggedInUser === null || loggedInUser === comment.author) ? `👎 ${comment.dislikes}` : `<button onclick="dislikeComment('${comment.id}', ${comment.is_liked})" class="dislikeButton">👎 ${comment.dislikes}</button>`;
+
+                        const removeLikeButton = (loggedInUser === null || loggedInUser === comment.author) ? `👍 ${comment.likes}` : `<button onclick="removelikeComment('${comment.id}')" class="removeLikeButton">👍 ${comment.likes}</button>`;
+                        const removeDislikeButton = (loggedInUser === null || loggedInUser === comment.author) ? `👎 ${comment.dislikes}` : `<button onclick="removeDislikeComment('${comment.id}')" class="removeDislikeButton">👎 ${comment.dislikes}</button>`;
+
+                        const ownerLikeButton = (loggedInUser === username) ? `<button onclick="OwnerlikeComment('${comment.id}')" class="ownerLikeButton">🤍</button>` : '';
+                        const removeOwnerLikeButton = (loggedInUser === username) ? `<button onclick="removeOwnerLikeComment('${comment.id}')" class="removeOwnerLikeButton">❤️</button>` : `❤️`;
+
+                        const deleteButton = (loggedInUser === comment.author) ? `<button onclick="deleteComment()" class="deleteButton">Delete</button>` : '';
+
+                        commentBox.innerHTML = `
+                            <div>
+                                <span>${comment.author}: ${comment.content}</span>
+                            </div>
+                            <div>
+                                ${comment.is_liked ? removeLikeButton : likeButton}
+                                ${comment.is_disliked ? removeDislikeButton : dislikeButton}
+                                ${comment.is_owner_liked ? removeOwnerLikeButton : ownerLikeButton}
+                                ${deleteButton}
+                            </div>`;
                         commentsContainer.appendChild(commentBox);
                     });
                 })
@@ -172,7 +244,7 @@
                         alert("Error: " + data.error);
                     } else {
                         alert("Comment created successfully!");
-                        getComments(username);
+                        getComments();
                         commentInput.value = "";
                     }
                 })
@@ -188,7 +260,119 @@
                 .then(response => response.json())
                 .then(data => {
                     alert(data.message);
-                    getComments(username);
+                    getComments();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function likeComment(commentId, isDisliked) {
+            if (isDisliked == true) {
+                removeDislikeComment(commentId);
+            }
+            setTimeout(() => {
+                fetch(`/api/like/like/${commentId}`, {
+                    method: 'POST',
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert("Error: " + data.error);
+                        } else {
+                            getComments();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }, 100);
+        }
+
+        function dislikeComment(commentId, isLiked) {
+            if (isLiked == true) {
+                removelikeComment(commentId);
+            }
+            setTimeout(() => {
+                fetch(`/api/like/dislike/${commentId}`, {
+                    method: 'POST',
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert("Error: " + data.error);
+                        } else {
+                            getComments();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }, 100);
+        }
+
+        function removelikeComment(commentId) {
+            fetch(`/api/like/remove-like/${commentId}`, {
+                method: 'POST',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert("Error: " + data.error);
+                    } else {
+                        getComments();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function removeDislikeComment(commentId) {
+            fetch(`/api/like/remove-dislike/${commentId}`, {
+                method: 'POST',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert("Error: " + data.error);
+                    } else {
+                        getComments();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function OwnerlikeComment(commentId) {
+            fetch(`/api/like/owner-like/${commentId}`, {
+                method: 'POST',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert("Error: " + data.error);
+                    } else {
+                        getComments();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        function removeOwnerLikeComment(commentId) {
+            fetch(`/api/like/owner-remove-like/${commentId}`, {
+                method: 'POST',
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert("Error: " + data.error);
+                    } else {
+                        getComments();
+                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -200,7 +384,7 @@
         commentInput.addEventListener("keypress", function (event) {
             if (event.key === "Enter") {
                 event.preventDefault();
-                createComment(username);
+                createComment();
             }
         });
 
