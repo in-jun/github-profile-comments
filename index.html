@@ -55,6 +55,13 @@
             align-items: flex-start;
         }
 
+        .buttonBox {
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            align-items: center;
+        }
+
         .deleteButton {
             background-color: #ff3333;
             color: #fff;
@@ -80,7 +87,7 @@
 
         .removeLikeButton,
         .removeDislikeButton {
-            padding: 5px;
+            padding: 4px;
             background-color: #000000;
             color: #fff;
             border: none;
@@ -206,7 +213,7 @@
                             <div>
                                 <span>${comment.author}: ${comment.content}</span>
                             </div>
-                            <div>
+                            <div class="buttonBox">
                                 ${comment.is_liked ? removeLikeButton : likeButton}
                                 ${comment.is_disliked ? removeDislikeButton : dislikeButton}
                                 ${comment.is_owner_liked ? removeOwnerLikeButton : ownerLikeButton}
