@@ -498,7 +498,7 @@ func handleCallback(c *gin.Context) {
 		}
 	} else {
 		if gitHubUser.GitHubLogin != githubLogin {
-			if err := db.Model(&gitHubUser).Update("github_login", githubLogin).Error; err != nil {
+			if err := db.Model(&gitHubUser).Update("git_hub_login", githubLogin).Error; err != nil {
 				c.AbortWithError(http.StatusInternalServerError, err)
 				return
 			}
