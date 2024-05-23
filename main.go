@@ -84,6 +84,26 @@ type Disliked struct {
 	UserID    uint
 }
 
+type CommentResponse struct {
+	ID           uint   `json:"id"`
+	Author       string `json:"author"`
+	Content      string `json:"content"`
+	IsOwnerLiked bool   `json:"is_owner_liked"`
+	IsLiked      bool   `json:"is_liked"`
+	IsDisliked   bool   `json:"is_disliked"`
+	Likes        int    `json:"likes"`
+	Dislikes     int    `json:"dislikes"`
+}
+
+type SvgCommentModel struct {
+	ID           uint
+	Author       string
+	Content      string
+	Likes        int
+	Dislikes     int
+	IsOwnerLiked bool
+}
+
 func main() {
 	router := gin.Default()
 
@@ -247,17 +267,6 @@ func getComments(c *gin.Context) {
 	var user GitHubUser
 	isLoggedIn := userID != nil && db.Where(&GitHubUser{GitHubID: userID.(float64)}).First(&user).Error == nil
 
-	type CommentResponse struct {
-		ID           uint   `json:"id"`
-		Author       string `json:"author"`
-		Content      string `json:"content"`
-		IsOwnerLiked bool   `json:"is_owner_liked"`
-		IsLiked      bool   `json:"is_liked"`
-		IsDisliked   bool   `json:"is_disliked"`
-		Likes        int    `json:"likes"`
-		Dislikes     int    `json:"dislikes"`
-	}
-
 	var comments []Comment
 	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
 
@@ -368,6 +377,37 @@ func getUserCommentSVG(c *gin.Context) {
 	var comments []Comment
 	db.Where(&Comment{ReceiverID: gitHubUser.ID}).Find(&comments)
 
+	commentResponses := make([]SvgCommentModel, 0, len(comments))
+	for _, comment := range comments {
+		var author GitHubUser
+		if err := db.First(&author, comment.AuthorID).Error; err != nil {
+			fmt.Println("Error getting GitHub login:", err)
+			continue
+		}
+
+		var likes []Liked
+		db.Where(&Liked{CommentID: comment.ID}).Find(&likes)
+
+		var dislikes []Disliked
+		db.Where(&Disliked{CommentID: comment.ID}).Find(&dislikes)
+
+		commentResponses = append(commentResponses, SvgCommentModel{
+			ID:           comment.ID,
+			Author:       author.GitHubLogin,
+			Content:      comment.Content,
+			Likes:        len(likes),
+			Dislikes:     len(dislikes),
+			IsOwnerLiked: comment.IsOwnerLiked,
+		})
+	}
+
+	sort.Slice(commentResponses, func(i, j int) bool {
+		if commentResponses[i].IsOwnerLiked != commentResponses[j].IsOwnerLiked {
+			return commentResponses[i].IsOwnerLiked
+		}
+		return (commentResponses[i].Likes - commentResponses[i].Dislikes) > (commentResponses[j].Likes - commentResponses[j].Dislikes)
+	})
+
 	theme := c.Query("theme")
 
 	var bgColor, textColor string
@@ -386,7 +426,7 @@ func getUserCommentSVG(c *gin.Context) {
 		textColor = "black"
 	}
 
-	svgContent := generateCommentBox(gitHubUser.GitHubLogin, comments, textColor, bgColor)
+	svgContent := generateCommentBox(gitHubUser.GitHubLogin, commentResponses, textColor, bgColor)
 
 	c.Writer.Header().Set("Content-Type", "image/svg+xml")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
@@ -802,7 +842,7 @@ func hasZalgo(input string) bool {
 	return zalgoPattern.MatchString(input)
 }
 
-func generateCommentBox(userName string, comments []Comment, textColor, boxColor string) string {
+func generateCommentBox(userName string, comments []SvgCommentModel, textColor, boxColor string) string {
 	const (
 		additionalHeightPerComment = 35
 		commentBoxMargin           = 5
@@ -819,15 +859,9 @@ func generateCommentBox(userName string, comments []Comment, textColor, boxColor
 
 	var commentBoxes []string
 	for i, comment := range comments {
-		var githubUser GitHubUser
-		err := db.First(&githubUser, comment.AuthorID).Error
-		if err != nil {
-			fmt.Println("Error getting GitHub login:", err)
-		}
-
 		commentY := 40 + i*additionalHeightPerComment
 		commentBox := fmt.Sprintf(`<rect x="%d" y="%d" width="%d" height="30" fill="%s" stroke="%s" rx="5" ry="5"/>`, commentBoxMargin, commentY, 550-2*commentBoxMargin, boxColor, textColor)
-		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">%s: %s</text>`, commentBoxMargin*2, commentY+20, textColor, escapeHTML(githubUser.GitHubLogin), comment.Content)
+		commentText := fmt.Sprintf(`<text x="%d" y="%d" font-family="Arial" font-size="14" fill="%s">%s: %s</text>`, commentBoxMargin*2, commentY+20, textColor, escapeHTML(comment.Author), comment.Content)
 		commentBoxes = append(commentBoxes, commentBox, commentText)
 	}
 
