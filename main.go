@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -292,6 +293,21 @@ func getComments(c *gin.Context) {
 			Dislikes:     len(dislikes),
 		})
 	}
+
+	sort.Slice(commentResponses, func(i, j int) bool {
+		if isLoggedIn {
+			if commentResponses[i].Author == user.GitHubLogin {
+				return true
+			}
+			if commentResponses[j].Author == user.GitHubLogin {
+				return false
+			}
+		}
+		if commentResponses[i].IsOwnerLiked != commentResponses[j].IsOwnerLiked {
+			return commentResponses[i].IsOwnerLiked
+		}
+		return (commentResponses[i].Likes - commentResponses[i].Dislikes) > (commentResponses[j].Likes - commentResponses[j].Dislikes)
+	})
 
 	c.JSON(200, commentResponses)
 }
