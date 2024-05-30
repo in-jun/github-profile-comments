@@ -84,7 +84,6 @@
             margin-left: 1px;
         }
 
-
         .removeLikeButton,
         .removeDislikeButton {
             padding: 4px;
@@ -156,7 +155,6 @@
         const commentsContainer = document.getElementById("commentsContainer");
         const commentInput = document.getElementById("commentInput");
         let loggedInUser = null;
-
 
         function updateUI(loggedIn) {
             authButton.style.display = loggedIn ? "none" : "block";
@@ -274,116 +272,114 @@
                 });
         }
 
-        function likeComment(commentId, isDisliked) {
-            if (isDisliked == true) {
-                removeDislikeComment(commentId);
+        async function likeComment(commentId, isDisliked) {
+            if (isDisliked) {
+                await removeDislikeComment(commentId);
             }
-            setTimeout(() => {
-                fetch(`/api/like/like/${commentId}`, {
-                    method: 'POST',
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            alert("Error: " + data.error);
-                        } else {
-                            getComments();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
-            }, 100);
+            await sendLikeRequest(commentId);
         }
 
-        function dislikeComment(commentId, isLiked) {
-            if (isLiked == true) {
-                removelikeComment(commentId);
+        async function dislikeComment(commentId, isLiked) {
+            if (isLiked) {
+                await removelikeComment(commentId);
             }
-            setTimeout(() => {
-                fetch(`/api/like/dislike/${commentId}`, {
+            await sendDislikeRequest(commentId);
+        }
+
+        async function sendLikeRequest(commentId) {
+            try {
+                const response = await fetch(`/api/like/like/${commentId}`, {
                     method: 'POST',
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            alert("Error: " + data.error);
-                        } else {
-                            getComments();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
-            }, 100);
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    getComments();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
         }
 
-        function removelikeComment(commentId) {
-            fetch(`/api/like/remove-like/${commentId}`, {
-                method: 'POST',
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert("Error: " + data.error);
-                    } else {
-                        getComments();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+        async function sendDislikeRequest(commentId) {
+            try {
+                const response = await fetch(`/api/like/dislike/${commentId}`, {
+                    method: 'POST',
                 });
+                const data = await response.json();
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    getComments();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
         }
 
-        function removeDislikeComment(commentId) {
-            fetch(`/api/like/remove-dislike/${commentId}`, {
-                method: 'POST',
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert("Error: " + data.error);
-                    } else {
-                        getComments();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+        async function removelikeComment(commentId) {
+            try {
+                const response = await fetch(`/api/like/remove-like/${commentId}`, {
+                    method: 'POST',
                 });
+                const data = await response.json();
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    getComments();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
         }
 
-        function OwnerlikeComment(commentId) {
-            fetch(`/api/like/owner-like/${commentId}`, {
-                method: 'POST',
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert("Error: " + data.error);
-                    } else {
-                        getComments();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+        async function removeDislikeComment(commentId) {
+            try {
+                const response = await fetch(`/api/like/remove-dislike/${commentId}`, {
+                    method: 'POST',
                 });
+                const data = await response.json();
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    getComments();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
         }
 
-        function removeOwnerLikeComment(commentId) {
-            fetch(`/api/like/owner-remove-like/${commentId}`, {
-                method: 'POST',
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert("Error: " + data.error);
-                    } else {
-                        getComments();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+        async function OwnerlikeComment(commentId) {
+            try {
+                const response = await fetch(`/api/like/owner-like/${commentId}`, {
+                    method: 'POST',
                 });
+                const data = await response.json();
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    getComments();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function removeOwnerLikeComment(commentId) {
+            try {
+                const response = await fetch(`/api/like/owner-remove-like/${commentId}`, {
+                    method: 'POST',
+                });
+                const data = await response.json();
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    getComments();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
         }
 
         checkLoginStatus();
