@@ -155,7 +155,7 @@
         const commentsContainer = document.getElementById("commentsContainer");
         const commentInput = document.getElementById("commentInput");
         let loggedInUser = null;
-        let canRequest = true;
+        let processingRequest = false;
 
         function updateUI(loggedIn) {
             authButton.style.display = loggedIn ? "none" : "block";
@@ -288,15 +288,11 @@
         }
 
         async function sendLikeRequest(commentId) {
-            if (!canRequest) {
-                return;
-            }
-            canRequest = false;
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/like/${commentId}`, {
                     method: 'POST',
-                }).then((_) => {
-                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -307,18 +303,15 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function sendDislikeRequest(commentId) {
-            if (!canRequest) {
-                return;
-            }
-            canRequest = false;
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/dislike/${commentId}`, {
                     method: 'POST',
-                }).then((_) => {
-                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -329,18 +322,15 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function removelikeComment(commentId) {
-            if (!canRequest) {
-                return;
-            }
-            canRequest = false;
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/remove-like/${commentId}`, {
                     method: 'POST',
-                }).then((_) => {
-                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -351,18 +341,15 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function removeDislikeComment(commentId) {
-            if (!canRequest) {
-                return;
-            }
-            canRequest = false;
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/remove-dislike/${commentId}`, {
                     method: 'POST',
-                }).then((_) => {
-                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -373,9 +360,12 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function OwnerlikeComment(commentId) {
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/owner-like/${commentId}`, {
                     method: 'POST',
@@ -389,9 +379,12 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function removeOwnerLikeComment(commentId) {
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/owner-remove-like/${commentId}`, {
                     method: 'POST',
@@ -405,6 +398,7 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         checkLoginStatus();
