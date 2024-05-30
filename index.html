@@ -155,6 +155,7 @@
         const commentsContainer = document.getElementById("commentsContainer");
         const commentInput = document.getElementById("commentInput");
         let loggedInUser = null;
+        let canRequest = true;
 
         function updateUI(loggedIn) {
             authButton.style.display = loggedIn ? "none" : "block";
@@ -287,9 +288,15 @@
         }
 
         async function sendLikeRequest(commentId) {
+            if (!canRequest) {
+                return;
+            }
+            canRequest = false;
             try {
                 const response = await fetch(`/api/like/like/${commentId}`, {
                     method: 'POST',
+                }).then((_) => {
+                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -303,9 +310,15 @@
         }
 
         async function sendDislikeRequest(commentId) {
+            if (!canRequest) {
+                return;
+            }
+            canRequest = false;
             try {
                 const response = await fetch(`/api/like/dislike/${commentId}`, {
                     method: 'POST',
+                }).then((_) => {
+                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -319,9 +332,15 @@
         }
 
         async function removelikeComment(commentId) {
+            if (!canRequest) {
+                return;
+            }
+            canRequest = false;
             try {
                 const response = await fetch(`/api/like/remove-like/${commentId}`, {
                     method: 'POST',
+                }).then((_) => {
+                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
@@ -335,9 +354,15 @@
         }
 
         async function removeDislikeComment(commentId) {
+            if (!canRequest) {
+                return;
+            }
+            canRequest = false;
             try {
                 const response = await fetch(`/api/like/remove-dislike/${commentId}`, {
                     method: 'POST',
+                }).then((_) => {
+                    canRequest = true;
                 });
                 const data = await response.json();
                 if (data.error) {
