@@ -155,6 +155,7 @@
         const commentsContainer = document.getElementById("commentsContainer");
         const commentInput = document.getElementById("commentInput");
         let loggedInUser = null;
+        let processingRequest = false;
 
         function updateUI(loggedIn) {
             authButton.style.display = loggedIn ? "none" : "block";
@@ -273,17 +274,23 @@
         }
 
         async function likeComment(commentId, isDisliked) {
+            if (processingRequest) return;
+            processingRequest = true;
             if (isDisliked) {
                 await removeDislikeComment(commentId);
             }
             await sendLikeRequest(commentId);
+            processingRequest = false;
         }
 
         async function dislikeComment(commentId, isLiked) {
+            if (processingRequest) return;
+            processingRequest = true;
             if (isLiked) {
                 await removelikeComment(commentId);
             }
             await sendDislikeRequest(commentId);
+            processingRequest = false;
         }
 
         async function sendLikeRequest(commentId) {
@@ -319,6 +326,8 @@
         }
 
         async function removelikeComment(commentId) {
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/remove-like/${commentId}`, {
                     method: 'POST',
@@ -332,9 +341,12 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function removeDislikeComment(commentId) {
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/remove-dislike/${commentId}`, {
                     method: 'POST',
@@ -348,9 +360,12 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function OwnerlikeComment(commentId) {
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/owner-like/${commentId}`, {
                     method: 'POST',
@@ -364,9 +379,12 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         async function removeOwnerLikeComment(commentId) {
+            if (processingRequest) return;
+            processingRequest = true;
             try {
                 const response = await fetch(`/api/like/owner-remove-like/${commentId}`, {
                     method: 'POST',
@@ -380,6 +398,7 @@
             } catch (error) {
                 console.error('Error:', error);
             }
+            processingRequest = false;
         }
 
         checkLoginStatus();
