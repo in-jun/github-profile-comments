@@ -1,11 +1,18 @@
-FROM golang:1.22.2
+FROM golang:1.22.2 AS builder
 
 WORKDIR /app
 
-COPY . .
-
+COPY go.mod go.sum ./
 RUN go mod download
 
-RUN go build -o main .
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+
+FROM scratch
+
+WORKDIR /app
+
+COPY --from=builder /app/main .
 
 CMD ["./main"]
