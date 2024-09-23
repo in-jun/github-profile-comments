@@ -13,6 +13,6 @@ FROM scratch
 
 WORKDIR /app
 
-COPY --from=builder /app/main .
+COPY --from=builder /app .
 
-CMD ["./main"]
+CMD ["/app/main"]
