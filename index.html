@@ -187,8 +187,8 @@
         const commentsContainer = document.getElementById("commentsContainer");
         const commentInput = document.getElementById("commentInput");
         let loggedInUser = null;
-        let isProcessing = false;
         const debounceDelay = 300;
+        const pendingRequests = {};
 
         function updateUI(loggedIn) {
             authButton.style.display = loggedIn ? "none" : "inline-block";
@@ -230,10 +230,17 @@
                         const commentElement = document.createElement('div');
                         commentElement.classList.add('comment');
 
-                        const likeButton = createActionButton('like', comment.likes, `likeComment(${comment.id}, ${comment.is_disliked})`, loggedInUser !== comment.author, comment.is_liked);
-                        const dislikeButton = createActionButton('dislike', comment.dislikes, `dislikeComment(${comment.id}, ${comment.is_liked})`, loggedInUser !== comment.author, comment.is_disliked);
-                        const ownerLikeButton = createActionButton('heart', '', `${comment.is_owner_liked ? 'removeOwnerLikeComment' : 'OwnerlikeComment'}(${comment.id})`, loggedInUser === username, comment.is_owner_liked);
-                        const deleteButton = createActionButton('delete', '', `deleteComment(${comment.id})`, loggedInUser === comment.author);
+                        const likeButton = createActionButton('like', comment.likes,
+                            comment.is_liked ? `removelikeComment(${comment.id})` : `likeComment(${comment.id})`,
+                            loggedInUser !== comment.author, comment.is_liked);
+                        const dislikeButton = createActionButton('dislike', comment.dislikes,
+                            comment.is_disliked ? `removeDislikeComment(${comment.id})` : `dislikeComment(${comment.id})`,
+                            loggedInUser !== comment.author, comment.is_disliked);
+                        const ownerLikeButton = createActionButton('heart', '',
+                            comment.is_owner_liked ? `removeOwnerLikeComment(${comment.id})` : `OwnerlikeComment(${comment.id})`,
+                            loggedInUser === username, comment.is_owner_liked);
+                        const deleteButton = createActionButton('delete', '', `deleteComment(${comment.id})`,
+                            loggedInUser === comment.author);
 
                         commentElement.innerHTML = `
                             <div class="comment-header">
@@ -262,9 +269,9 @@
             }
             const activeClass = isActive ? (type === 'like' ? 'liked' : type === 'dislike' ? 'disliked' : 'active') : '';
             return `
-                <button class="action-button ${activeClass}" onclick="handleAction(() => { ${onclick}; getComments(); })">
+                <button class="action-button ${activeClass}" onclick="handleAction('${type}', () => { ${onclick} })">
                     ${getSvgIcon(type)}
-                    ${count ? `<span>${count}</span>` : ''}
+                    ${count !== '' ? `<span>${count}</span>` : ''}
                 </button>
             `;
         }
@@ -292,51 +299,45 @@
             };
         }
 
-        function handleAction(action) {
-            if (isProcessing) return;
-            isProcessing = true;
+        function handleAction(type, action) {
+            if (pendingRequests[type]) return;
+            pendingRequests[type] = true;
 
             const button = event.currentTarget;
             button.classList.add('processing');
 
             debounce(() => {
-                const result = action();
-                if (result && typeof result.then === 'function') {
-                    result.finally(() => {
-                        isProcessing = false;
+                action()
+                    .then(() => getComments())
+                    .finally(() => {
+                        pendingRequests[type] = false;
                         button.classList.remove('processing');
                     });
-                } else {
-                    isProcessing = false;
-                    button.classList.remove('processing');
-                }
             }, debounceDelay)();
         }
 
-        async function likeComment(commentId, isDisliked) {
-            if (isDisliked) await removeDislikeComment(commentId);
-            await sendRequest(`/api/like/like/${commentId}`);
+        async function likeComment(commentId) {
+            return sendRequest(`/api/like/like/${commentId}`);
         }
 
-        async function dislikeComment(commentId, isLiked) {
-            if (isLiked) await removelikeComment(commentId);
-            await sendRequest(`/api/like/dislike/${commentId}`);
+        async function dislikeComment(commentId) {
+            return sendRequest(`/api/like/dislike/${commentId}`);
         }
 
         async function removelikeComment(commentId) {
-            await sendRequest(`/api/like/remove-like/${commentId}`);
+            return sendRequest(`/api/like/remove-like/${commentId}`);
         }
 
         async function removeDislikeComment(commentId) {
-            await sendRequest(`/api/like/remove-dislike/${commentId}`);
+            return sendRequest(`/api/like/remove-dislike/${commentId}`);
         }
 
         async function OwnerlikeComment(commentId) {
-            await sendRequest(`/api/like/owner-like/${commentId}`);
+            return sendRequest(`/api/like/owner-like/${commentId}`);
         }
 
         async function removeOwnerLikeComment(commentId) {
-            await sendRequest(`/api/like/owner-remove-like/${commentId}`);
+            return sendRequest(`/api/like/owner-remove-like/${commentId}`);
         }
 
         async function sendRequest(url) {
@@ -346,8 +347,10 @@
                 if (data.error) {
                     alert("Error: " + data.error);
                 }
+                return data;
             } catch (error) {
                 console.error('Error:', error);
+                throw error;
             }
         }
 
@@ -359,6 +362,9 @@
                 alert("Error: Comment should be maximum 35 characters.");
                 return;
             }
+
+            if (pendingRequests['createComment']) return;
+            pendingRequests['createComment'] = true;
 
             fetch(`/api/user/${username}/comments`, {
                 method: 'POST',
@@ -376,10 +382,16 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                })
+                .finally(() => {
+                    pendingRequests['createComment'] = false;
                 });
         }
 
         function deleteComment(commentId) {
+            if (pendingRequests['deleteComment']) return;
+            pendingRequests['deleteComment'] = true;
+
             fetch(`/api/user/${username}/comments`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
@@ -387,10 +399,18 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    alert(data.message);
+                    if (data.error) {
+                        alert("Error: " + data.error);
+                    } else {
+                        alert(data.message);
+                        getComments();
+                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                })
+                .finally(() => {
+                    pendingRequests['deleteComment'] = false;
                 });
         }
 
