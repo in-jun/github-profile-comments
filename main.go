@@ -252,7 +252,7 @@ func createComment(c *gin.Context) {
 	})
 
 	if err != nil {
-		if err.Error() == "User already has a comment" {
+		if err.Error() == "user already has a comment" {
 			c.JSON(400, gin.H{"error": err.Error()})
 		} else {
 			c.JSON(500, gin.H{"error": "Failed to create comment"})
