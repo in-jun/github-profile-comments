@@ -139,9 +139,7 @@ func main() {
 			like.POST("/owner-remove-like/:commentID", ownerRemoveLike)
 		}
 	}
-	// Favicon routing
 	router.StaticFile("/favicon.ico", "./favicon.ico")
-	// HTML file
 	router.GET("/:username", func(c *gin.Context) {
 		c.File("index.html")
 	})
