@@ -240,18 +240,19 @@
                     data.forEach(comment => {
                         const commentElement = document.createElement('div');
                         commentElement.classList.add('comment');
+                        commentElement.dataset.commentId = comment.id;
 
                         const isOwnComment = loggedInUser === comment.author;
                         const isOwner = loggedInUser === username;
 
                         const likeButton = createActionButton('like', comment.likes,
-                            `handleLikeAction(${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
+                            `handleLikeAction(this, ${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
                             !isOwnComment, comment.is_liked);
                         const dislikeButton = createActionButton('dislike', comment.dislikes,
-                            `handleDislikeAction(${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
+                            `handleDislikeAction(this, ${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
                             !isOwnComment, comment.is_disliked);
                         const ownerLikeButton = createActionButton('heart', '',
-                            `handleOwnerLikeAction(${comment.id}, ${comment.is_owner_liked})`,
+                            `handleOwnerLikeAction(this, ${comment.id}, ${comment.is_owner_liked})`,
                             isOwner, comment.is_owner_liked);
                         const deleteButton = createActionButton('delete', '', `deleteComment(${comment.id})`,
                             isOwnComment);
@@ -283,7 +284,7 @@
             return `
                 <button class="action-button ${activeClass} ${disabledClass}" onclick="${isEnabled ? onclick : ''}" ${isEnabled ? '' : 'disabled'}>
                     ${getSvgIcon(type)}
-                    ${count !== '' ? `<span>${count}</span>` : ''}
+                    <span class="count">${count !== '' ? count : ''}</span>
                 </button>
             `;
         }
@@ -330,11 +331,22 @@
                 });
         }
 
-        function handleLikeAction(commentId, isLiked, isDisliked) {
+        function handleLikeAction(button, commentId, isLiked, isDisliked) {
+            const likeButton = button;
+            const dislikeButton = button.nextElementSibling;
+            const likeCount = likeButton.querySelector('.count');
+            const dislikeCount = dislikeButton.querySelector('.count');
+
             if (isLiked) {
+                likeButton.classList.remove('liked');
+                likeCount.textContent = parseInt(likeCount.textContent) - 1;
                 removelikeComment(commentId);
             } else {
+                likeButton.classList.add('liked');
+                likeCount.textContent = parseInt(likeCount.textContent) + 1;
                 if (isDisliked) {
+                    dislikeButton.classList.remove('disliked');
+                    dislikeCount.textContent = parseInt(dislikeCount.textContent) - 1;
                     removeDislikeComment(commentId).then(() => likeComment(commentId));
                 } else {
                     likeComment(commentId);
@@ -342,11 +354,23 @@
             }
         }
 
-        function handleDislikeAction(commentId, isLiked, isDisliked) {
+        function handleDislikeAction(button, commentId, isLiked, isDisliked) {
+            const dislikeButton = button;
+            const likeButton = button.previousElementSibling;
+            const dislikeCount = dislikeButton.querySelector('.count');
+            const likeCount = likeButton.querySelector('.count');
+
             if (isDisliked) {
+                dislikeButton.classList.remove('disliked');
+                dislikeCount.textContent = parseInt(dislikeCount.textContent) - 1;
                 removeDislikeComment(commentId);
             } else {
+                dislikeButton.classList.add('disliked');
+                dislikeCount.textContent = parseInt(dislikeCount.textContent) + 1;
+
                 if (isLiked) {
+                    likeButton.classList.remove('liked');
+                    likeCount.textContent = parseInt(likeCount.textContent) - 1;
                     removelikeComment(commentId).then(() => dislikeComment(commentId));
                 } else {
                     dislikeComment(commentId);
@@ -354,10 +378,12 @@
             }
         }
 
-        function handleOwnerLikeAction(commentId, isOwnerLiked) {
+        function handleOwnerLikeAction(button, commentId, isOwnerLiked) {
             if (isOwnerLiked) {
+                button.classList.remove('owner-liked');
                 removeOwnerLikeComment(commentId);
             } else {
+                button.classList.add('owner-liked');
                 OwnerlikeComment(commentId);
             }
         }
