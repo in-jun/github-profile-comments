@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comment System</title>
+    <title>Elegant Comment System</title>
     <style>
         :root {
             --primary-color: #000000;
@@ -12,88 +12,108 @@
             --accent-color: #f0f0f0;
             --text-color: #333333;
             --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --transition-speed: 0.3s;
         }
 
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: var(--secondary-color);
+            background-color: #f9f9f9;
             color: var(--text-color);
             line-height: 1.6;
         }
 
         .container {
             max-width: 800px;
-            margin: 40px auto;
-            padding: 30px;
+            margin: 60px auto;
+            padding: 40px;
             background-color: var(--secondary-color);
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 15px 35px var(--shadow-color);
             position: relative;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px var(--shadow-color);
         }
 
         .top-right {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
         }
 
         button {
-            padding: 10px 20px;
+            padding: 12px 24px;
             background-color: var(--primary-color);
             color: var(--secondary-color);
             border: none;
-            border-radius: 6px;
+            border-radius: 30px;
             cursor: pointer;
             font-size: 14px;
-            transition: background-color 0.3s ease;
+            font-weight: 600;
+            transition: all var(--transition-speed) ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         button:hover {
             background-color: #333333;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px var(--shadow-color);
         }
 
         #authStatus {
             margin-bottom: 30px;
             font-weight: 600;
+            font-size: 18px;
+            color: var(--primary-color);
         }
 
         .comment {
-            margin-bottom: 20px;
-            padding: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 12px;
             position: relative;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            transition: box-shadow 0.3s ease;
+            transition: all var(--transition-speed) ease;
+            background-color: var(--secondary-color);
         }
 
         .comment:hover {
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 20px var(--shadow-color);
+            transform: translateY(-3px);
         }
 
         .buttonBox {
             display: flex;
             align-items: center;
+            gap: 8px;
         }
 
         .actionButton {
             background-color: transparent;
             color: var(--text-color);
             border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 5px 10px;
+            border-radius: 20px;
+            padding: 6px 12px;
             cursor: pointer;
             font-size: 12px;
-            margin-left: 5px;
-            transition: all 0.3s ease;
+            transition: all var(--transition-speed) ease;
         }
 
         .actionButton:hover {
             background-color: var(--accent-color);
+            transform: translateY(-2px);
         }
 
         .deleteButton {
@@ -107,57 +127,92 @@
 
         #commentInput {
             margin-top: 30px;
-            padding: 15px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            width: calc(100% - 32px);
+            padding: 15px 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 30px;
+            width: calc(100% - 44px);
             font-size: 16px;
-            transition: border-color 0.3s ease;
+            transition: all var(--transition-speed) ease;
         }
 
         #commentInput:focus {
             outline: none;
             border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
         }
 
         .author {
             font-weight: 600;
             margin-right: 10px;
+            color: var(--primary-color);
         }
 
         .content {
             word-break: break-word;
+            line-height: 1.5;
+        }
+
+        #commentsContainer {
+            margin-top: 40px;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .comment-body {
+            margin-bottom: 15px;
         }
 
         @media (max-width: 600px) {
             .container {
-                padding: 20px;
-                margin: 20px;
+                padding: 30px;
+                margin: 30px 15px;
             }
 
             .top-right {
                 position: static;
-                margin-bottom: 20px;
+                margin-bottom: 30px;
+                flex-direction: column;
             }
 
             button {
                 width: 100%;
-                margin-bottom: 10px;
             }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <div id="authStatus"></div>
+        <div id="authStatus" class="fade-in"></div>
         <div class="top-right">
-            <button id="authButton">Login / Signup</button>
-            <button id="logoutButton" style="display: none;">Logout</button>
+            <button id="authButton" class="fade-in">Login / Signup</button>
+            <button id="logoutButton" class="fade-in" style="display: none;">Logout</button>
         </div>
         <div id="commentsContainer"></div>
-        <form id="commentForm" style="display: none;">
-            <input type="text" id="commentInput" placeholder="Enter your comment (max 35 characters)" maxlength="35">
+        <form id="commentForm" class="fade-in" style="display: none;">
+            <input type="text" id="commentInput" placeholder="Share your thoughts... (max 35 characters)"
+                maxlength="35">
         </form>
     </div>
 
@@ -184,11 +239,11 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.logged_in) {
-                        authStatus.innerText = "Logged in as: " + data.user_id;
+                        authStatus.innerText = "Welcome, " + data.user_id;
                         updateUI(true);
                         loggedInUser = data.user_id;
                     } else {
-                        authStatus.innerText = "Not logged in";
+                        authStatus.innerText = "Join the conversation";
                         updateUI(false);
                     }
                     getComments();
@@ -211,7 +266,7 @@
 
                     data.forEach(comment => {
                         const commentBox = document.createElement('div');
-                        commentBox.classList.add('comment');
+                        commentBox.classList.add('comment', 'fade-in');
 
                         const likeButton = (loggedInUser === null || loggedInUser === comment.author) ? `👍 ${comment.likes}` : `<button onclick="likeComment('${comment.id}', ${comment.is_disliked})" class="actionButton">👍 ${comment.likes}</button>`;
                         const dislikeButton = (loggedInUser === null || loggedInUser === comment.author) ? `👎 ${comment.dislikes}` : `<button onclick="dislikeComment('${comment.id}', ${comment.is_liked})" class="actionButton">👎 ${comment.dislikes}</button>`;
@@ -225,8 +280,10 @@
                         const deleteButton = (loggedInUser === comment.author) ? `<button onclick="deleteComment()" class="actionButton deleteButton">Delete</button>` : '';
 
                         commentBox.innerHTML = `
-                            <div>
-                                <span class="author">${comment.author}:</span>
+                            <div class="comment-header">
+                                <span class="author">${comment.author}</span>
+                            </div>
+                            <div class="comment-body">
                                 <span class="content">${comment.content}</span>
                             </div>
                             <div class="buttonBox">
@@ -266,7 +323,6 @@
                     if (data.error) {
                         alert("Error: " + data.error);
                     } else {
-                        alert("Comment created successfully!");
                         getComments();
                         commentInput.value = "";
                     }
