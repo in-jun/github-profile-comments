@@ -262,7 +262,7 @@
             }
             const activeClass = isActive ? (type === 'like' ? 'liked' : type === 'dislike' ? 'disliked' : 'active') : '';
             return `
-                <button class="action-button ${activeClass}" onclick="handleAction(() => { ${onclick} })">
+                <button class="action-button ${activeClass}" onclick="handleAction(() => { ${onclick}; getComments(); })">
                     ${getSvgIcon(type)}
                     ${count ? `<span>${count}</span>` : ''}
                 </button>
@@ -300,10 +300,16 @@
             button.classList.add('processing');
 
             debounce(() => {
-                action().finally(() => {
+                const result = action();
+                if (result && typeof result.then === 'function') {
+                    result.finally(() => {
+                        isProcessing = false;
+                        button.classList.remove('processing');
+                    });
+                } else {
                     isProcessing = false;
                     button.classList.remove('processing');
-                });
+                }
             }, debounceDelay)();
         }
 
@@ -339,8 +345,6 @@
                 const data = await response.json();
                 if (data.error) {
                     alert("Error: " + data.error);
-                } else {
-                    getComments();
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -384,7 +388,6 @@
                 .then(response => response.json())
                 .then(data => {
                     alert(data.message);
-                    getComments();
                 })
                 .catch(error => {
                     console.error('Error:', error);
