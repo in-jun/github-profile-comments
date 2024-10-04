@@ -230,10 +230,10 @@
                         const commentElement = document.createElement('div');
                         commentElement.classList.add('comment');
 
-                        const likeButton = createActionButton('like', comment.likes, () => handleAction(() => likeComment(comment.id, comment.is_disliked)), loggedInUser !== comment.author, comment.is_liked);
-                        const dislikeButton = createActionButton('dislike', comment.dislikes, () => handleAction(() => dislikeComment(comment.id, comment.is_liked)), loggedInUser !== comment.author, comment.is_disliked);
-                        const ownerLikeButton = createActionButton('heart', '', () => handleAction(() => comment.is_owner_liked ? removeOwnerLikeComment(comment.id) : OwnerlikeComment(comment.id)), loggedInUser === username, comment.is_owner_liked);
-                        const deleteButton = createActionButton('delete', '', () => handleAction(deleteComment), loggedInUser === comment.author);
+                        const likeButton = createActionButton('like', comment.likes, () => likeComment(comment.id, comment.is_disliked), loggedInUser !== comment.author, comment.is_liked);
+                        const dislikeButton = createActionButton('dislike', comment.dislikes, () => dislikeComment(comment.id, comment.is_liked), loggedInUser !== comment.author, comment.is_disliked);
+                        const ownerLikeButton = createActionButton('heart', '', () => comment.is_owner_liked ? removeOwnerLikeComment(comment.id) : OwnerlikeComment(comment.id), loggedInUser === username, comment.is_owner_liked);
+                        const deleteButton = createActionButton('delete', '', deleteComment, loggedInUser === comment.author);
 
                         commentElement.innerHTML = `
                             <div class="comment-header">
@@ -262,7 +262,7 @@
             }
             const activeClass = isActive ? (type === 'like' ? 'liked' : type === 'dislike' ? 'disliked' : 'active') : '';
             return `
-                <button class="action-button ${activeClass}" onclick="${onclick.name}()">
+                <button class="action-button ${activeClass}" onclick="handleAction(${onclick})">
                     ${getSvgIcon(type)}
                     ${count ? `<span>${count}</span>` : ''}
                 </button>
