@@ -269,7 +269,7 @@
             }
             const activeClass = isActive ? (type === 'like' ? 'liked' : type === 'dislike' ? 'disliked' : 'active') : '';
             return `
-                <button class="action-button ${activeClass}" onclick="handleAction('${type}', () => { ${onclick} })">
+                <button class="action-button ${activeClass}" onclick="handleAction('${type}', function() { ${onclick} })">
                     ${getSvgIcon(type)}
                     ${count !== '' ? `<span>${count}</span>` : ''}
                 </button>
@@ -307,8 +307,12 @@
             button.classList.add('processing');
 
             debounce(() => {
-                action()
+                Promise.resolve(action())
                     .then(() => getComments())
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert("An error occurred. Please try again.");
+                    })
                     .finally(() => {
                         pendingRequests[type] = false;
                         button.classList.remove('processing');
@@ -389,29 +393,27 @@
         }
 
         function deleteComment(commentId) {
-            if (pendingRequests['deleteComment']) return;
-            pendingRequests['deleteComment'] = true;
-
-            fetch(`/api/user/${username}/comments`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ commentId: commentId })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert("Error: " + data.error);
-                    } else {
-                        alert(data.message);
-                        getComments();
-                    }
+            return new Promise((resolve, reject) => {
+                fetch(`/api/user/${username}/comments`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ commentId: commentId })
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                })
-                .finally(() => {
-                    pendingRequests['deleteComment'] = false;
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert("Error: " + data.error);
+                            reject(data.error);
+                        } else {
+                            alert(data.message);
+                            resolve(data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        reject(error);
+                    });
+            });
         }
 
         checkLoginStatus();
