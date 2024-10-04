@@ -304,88 +304,91 @@
             }
         }
 
-        function debounce(func, delay) {
-            let timeoutId;
-            return function (...args) {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => func.apply(this, args), delay);
-            };
-        }
-
-        function handleAction(type, action) {
-            if (pendingRequests[type]) return;
-            pendingRequests[type] = true;
-
-            const button = event.currentTarget;
-            button.classList.add('processing');
-
-            Promise.resolve(action())
-                .then(() => getComments())
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert("An error occurred. Please try again.");
-                })
-                .finally(() => {
-                    pendingRequests[type] = false;
-                    button.classList.remove('processing');
-                });
-        }
-
         function handleLikeAction(button, commentId, isLiked, isDisliked) {
+            if (pendingRequests[`like_${commentId}`]) return;
+            pendingRequests[`like_${commentId}`] = true;
+
             const likeButton = button;
             const dislikeButton = button.nextElementSibling;
             const likeCount = likeButton.querySelector('.count');
             const dislikeCount = dislikeButton.querySelector('.count');
 
+            let action;
             if (isLiked) {
+                action = removelikeComment(commentId);
                 likeButton.classList.remove('liked');
                 likeCount.textContent = parseInt(likeCount.textContent) - 1;
-                removelikeComment(commentId);
             } else {
+                action = likeComment(commentId);
                 likeButton.classList.add('liked');
                 likeCount.textContent = parseInt(likeCount.textContent) + 1;
                 if (isDisliked) {
                     dislikeButton.classList.remove('disliked');
                     dislikeCount.textContent = parseInt(dislikeCount.textContent) - 1;
-                    removeDislikeComment(commentId).then(() => likeComment(commentId));
-                } else {
-                    likeComment(commentId);
                 }
             }
+
+            action.then(() => {
+                if (isDisliked) {
+                    return removeDislikeComment(commentId);
+                }
+            }).finally(() => {
+                pendingRequests[`like_${commentId}`] = false;
+                getComments();
+            });
         }
 
         function handleDislikeAction(button, commentId, isLiked, isDisliked) {
+            if (pendingRequests[`dislike_${commentId}`]) return;
+            pendingRequests[`dislike_${commentId}`] = true;
+
             const dislikeButton = button;
             const likeButton = button.previousElementSibling;
             const dislikeCount = dislikeButton.querySelector('.count');
             const likeCount = likeButton.querySelector('.count');
 
+            let action;
             if (isDisliked) {
+                action = removeDislikeComment(commentId);
                 dislikeButton.classList.remove('disliked');
                 dislikeCount.textContent = parseInt(dislikeCount.textContent) - 1;
-                removeDislikeComment(commentId);
             } else {
+                action = dislikeComment(commentId);
                 dislikeButton.classList.add('disliked');
                 dislikeCount.textContent = parseInt(dislikeCount.textContent) + 1;
-
                 if (isLiked) {
                     likeButton.classList.remove('liked');
                     likeCount.textContent = parseInt(likeCount.textContent) - 1;
-                    removelikeComment(commentId).then(() => dislikeComment(commentId));
-                } else {
-                    dislikeComment(commentId);
                 }
             }
+
+            action.then(() => {
+                if (isLiked) {
+                    return removelikeComment(commentId);
+                }
+            }).finally(() => {
+                pendingRequests[`dislike_${commentId}`] = false;
+                getComments();
+            });
         }
 
         function handleOwnerLikeAction(button, commentId, isOwnerLiked) {
+            if (pendingRequests[`ownerLike_${commentId}`]) return;
+            pendingRequests[`ownerLike_${commentId}`] = true;
+
+            let action;
             if (isOwnerLiked) {
+                action = removeOwnerLikeComment(commentId);
                 button.classList.remove('owner-liked');
-                removeOwnerLikeComment(commentId);
             } else {
+                action = OwnerlikeComment(commentId);
                 button.classList.add('owner-liked');
-                OwnerlikeComment(commentId);
             }
+
+            action.finally(() => {
+                pendingRequests[`ownerLike_${commentId}`] = false;
+                getComments();
+            });
         }
 
         async function likeComment(commentId) {
