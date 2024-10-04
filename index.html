@@ -230,10 +230,10 @@
                         const commentElement = document.createElement('div');
                         commentElement.classList.add('comment');
 
-                        const likeButton = createActionButton('like', comment.likes, () => likeComment(comment.id, comment.is_disliked), loggedInUser !== comment.author, comment.is_liked);
-                        const dislikeButton = createActionButton('dislike', comment.dislikes, () => dislikeComment(comment.id, comment.is_liked), loggedInUser !== comment.author, comment.is_disliked);
-                        const ownerLikeButton = createActionButton('heart', '', () => comment.is_owner_liked ? removeOwnerLikeComment(comment.id) : OwnerlikeComment(comment.id), loggedInUser === username, comment.is_owner_liked);
-                        const deleteButton = createActionButton('delete', '', deleteComment, loggedInUser === comment.author);
+                        const likeButton = createActionButton('like', comment.likes, `likeComment(${comment.id}, ${comment.is_disliked})`, loggedInUser !== comment.author, comment.is_liked);
+                        const dislikeButton = createActionButton('dislike', comment.dislikes, `dislikeComment(${comment.id}, ${comment.is_liked})`, loggedInUser !== comment.author, comment.is_disliked);
+                        const ownerLikeButton = createActionButton('heart', '', `${comment.is_owner_liked ? 'removeOwnerLikeComment' : 'OwnerlikeComment'}(${comment.id})`, loggedInUser === username, comment.is_owner_liked);
+                        const deleteButton = createActionButton('delete', '', `deleteComment(${comment.id})`, loggedInUser === comment.author);
 
                         commentElement.innerHTML = `
                             <div class="comment-header">
@@ -262,7 +262,7 @@
             }
             const activeClass = isActive ? (type === 'like' ? 'liked' : type === 'dislike' ? 'disliked' : 'active') : '';
             return `
-                <button class="action-button ${activeClass}" onclick="handleAction(${onclick})">
+                <button class="action-button ${activeClass}" onclick="handleAction(() => { ${onclick} })">
                     ${getSvgIcon(type)}
                     ${count ? `<span>${count}</span>` : ''}
                 </button>
@@ -375,11 +375,16 @@
                 });
         }
 
-        function deleteComment() {
-            fetch(`/api/user/${username}/comments`, { method: 'DELETE' })
+        function deleteComment(commentId) {
+            fetch(`/api/user/${username}/comments`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ commentId: commentId })
+            })
                 .then(response => response.json())
                 .then(data => {
-                    alert(data.message); getComments();
+                    alert(data.message);
+                    getComments();
                 })
                 .catch(error => {
                     console.error('Error:', error);
