@@ -180,14 +180,11 @@
                 <button id="logoutButton" style="display: none;">Logout</button>
             </div>
         </header>
-
         <form id="commentForm" style="display: none;">
             <input type="text" id="commentInput" placeholder="Enter your comment (max 35 characters)" maxlength="35">
         </form>
-
         <div id="commentsContainer"></div>
     </div>
-
     <script>
         const pathParts = window.location.pathname.split("/");
         const username = pathParts[pathParts.length - 1];
@@ -198,7 +195,6 @@
         const commentsContainer = document.getElementById("commentsContainer");
         const commentInput = document.getElementById("commentInput");
         let loggedInUser = null;
-        const debounceDelay = 300;
         const pendingRequests = {};
 
         function updateUI(loggedIn) {
@@ -221,9 +217,7 @@
                     }
                     getComments();
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
+                .catch(error => console.error('Error:', error));
         }
 
         function getComments() {
@@ -231,51 +225,13 @@
                 .then(response => response.json())
                 .then(data => {
                     commentsContainer.innerHTML = "";
-
                     if (data.error) {
                         commentsContainer.innerHTML = `<p>Error: ${data.error}</p>`;
                         return;
                     }
-
-                    data.forEach(comment => {
-                        const commentElement = document.createElement('div');
-                        commentElement.classList.add('comment');
-                        commentElement.dataset.commentId = comment.id;
-
-                        const isOwnComment = loggedInUser === comment.author;
-                        const isOwner = loggedInUser === username;
-
-                        const likeButton = createActionButton('like', comment.likes,
-                            `handleLikeAction(this, ${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
-                            !isOwnComment, comment.is_liked);
-                        const dislikeButton = createActionButton('dislike', comment.dislikes,
-                            `handleDislikeAction(this, ${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
-                            !isOwnComment, comment.is_disliked);
-                        const ownerLikeButton = createActionButton('heart', '',
-                            `handleOwnerLikeAction(this, ${comment.id}, ${comment.is_owner_liked})`,
-                            isOwner, comment.is_owner_liked);
-                        const deleteButton = createActionButton('delete', '', `deleteComment(${comment.id})`,
-                            isOwnComment);
-
-                        commentElement.innerHTML = `
-                            <div class="comment-header">
-                                <span class="comment-author">${comment.author}</span>
-                                <div class="comment-actions">
-                                    ${likeButton}
-                                    ${dislikeButton}
-                                    ${ownerLikeButton}
-                                    ${deleteButton}
-                                </div>
-                            </div>
-                            <div class="comment-content">${comment.content}</div>
-                        `;
-
-                        commentsContainer.appendChild(commentElement);
-                    });
+                    data.forEach(comment => addCommentToUI(comment));
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
+                .catch(error => console.error('Error:', error));
         }
 
         function createActionButton(type, count, onclick, isEnabled, isActive = false) {
@@ -290,18 +246,13 @@
         }
 
         function getSvgIcon(type) {
-            switch (type) {
-                case 'like':
-                    return '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"></path></svg>';
-                case 'dislike':
-                    return '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v1.91l.01.01L1 14c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"></path></svg>';
-                case 'heart':
-                    return '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>';
-                case 'delete':
-                    return '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path></svg>';
-                default:
-                    return '';
-            }
+            const icons = {
+                'like': '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"></path></svg>',
+                'dislike': '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v1.91l.01.01L1 14c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"></path></svg>',
+                'heart': '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>',
+                'delete': '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path></svg>'
+            };
+            return icons[type] || '';
         }
 
         function handleLikeAction(button, commentId, isLiked, isDisliked) {
@@ -313,29 +264,28 @@
             const likeCount = likeButton.querySelector('.count');
             const dislikeCount = dislikeButton.querySelector('.count');
 
-            let action;
+            let likeCountValue = parseInt(likeCount.textContent);
+            let dislikeCountValue = parseInt(dislikeCount.textContent);
+
             if (isLiked) {
-                action = removelikeComment(commentId);
                 likeButton.classList.remove('liked');
-                likeCount.textContent = parseInt(likeCount.textContent) - 1;
+                likeCountValue--;
+                sendRequest(`/api/like/remove-like/${commentId}`);
             } else {
-                action = likeComment(commentId);
                 likeButton.classList.add('liked');
-                likeCount.textContent = parseInt(likeCount.textContent) + 1;
+                likeCountValue++;
                 if (isDisliked) {
                     dislikeButton.classList.remove('disliked');
-                    dislikeCount.textContent = parseInt(dislikeCount.textContent) - 1;
+                    dislikeCountValue--;
+                    sendRequest(`/api/like/remove-dislike/${commentId}`);
                 }
+                sendRequest(`/api/like/like/${commentId}`);
             }
 
-            action.then(() => {
-                if (isDisliked) {
-                    return removeDislikeComment(commentId);
-                }
-            }).finally(() => {
-                pendingRequests[`like_${commentId}`] = false;
-                getComments();
-            });
+            likeCount.textContent = likeCountValue;
+            dislikeCount.textContent = dislikeCountValue;
+
+            pendingRequests[`like_${commentId}`] = false;
         }
 
         function handleDislikeAction(button, commentId, isLiked, isDisliked) {
@@ -347,98 +297,60 @@
             const dislikeCount = dislikeButton.querySelector('.count');
             const likeCount = likeButton.querySelector('.count');
 
-            let action;
+            let dislikeCountValue = parseInt(dislikeCount.textContent);
+            let likeCountValue = parseInt(likeCount.textContent);
+
             if (isDisliked) {
-                action = removeDislikeComment(commentId);
                 dislikeButton.classList.remove('disliked');
-                dislikeCount.textContent = parseInt(dislikeCount.textContent) - 1;
+                dislikeCountValue--;
+                sendRequest(`/api/like/remove-dislike/${commentId}`);
             } else {
-                action = dislikeComment(commentId);
                 dislikeButton.classList.add('disliked');
-                dislikeCount.textContent = parseInt(dislikeCount.textContent) + 1;
+                dislikeCountValue++;
                 if (isLiked) {
                     likeButton.classList.remove('liked');
-                    likeCount.textContent = parseInt(likeCount.textContent) - 1;
+                    likeCountValue--;
+                    sendRequest(`/api/like/remove-like/${commentId}`);
                 }
+                sendRequest(`/api/like/dislike/${commentId}`);
             }
 
-            action.then(() => {
-                if (isLiked) {
-                    return removelikeComment(commentId);
-                }
-            }).finally(() => {
-                pendingRequests[`dislike_${commentId}`] = false;
-                getComments();
-            });
+            dislikeCount.textContent = dislikeCountValue;
+            likeCount.textContent = likeCountValue;
+
+            pendingRequests[`dislike_${commentId}`] = false;
         }
 
         function handleOwnerLikeAction(button, commentId, isOwnerLiked) {
             if (pendingRequests[`ownerLike_${commentId}`]) return;
             pendingRequests[`ownerLike_${commentId}`] = true;
 
-            let action;
             if (isOwnerLiked) {
-                action = removeOwnerLikeComment(commentId);
                 button.classList.remove('owner-liked');
+                sendRequest(`/api/like/owner-remove-like/${commentId}`);
             } else {
-                action = OwnerlikeComment(commentId);
                 button.classList.add('owner-liked');
+                sendRequest(`/api/like/owner-like/${commentId}`);
             }
 
-            action.finally(() => {
-                pendingRequests[`ownerLike_${commentId}`] = false;
-                getComments();
-            });
-        }
-
-        async function likeComment(commentId) {
-            return sendRequest(`/api/like/like/${commentId}`);
-        }
-
-        async function dislikeComment(commentId) {
-            return sendRequest(`/api/like/dislike/${commentId}`);
-        }
-
-        async function removelikeComment(commentId) {
-            return sendRequest(`/api/like/remove-like/${commentId}`);
-        }
-
-        async function removeDislikeComment(commentId) {
-            return sendRequest(`/api/like/remove-dislike/${commentId}`);
-        }
-
-        async function OwnerlikeComment(commentId) {
-            return sendRequest(`/api/like/owner-like/${commentId}`);
-        }
-
-        async function removeOwnerLikeComment(commentId) {
-            return sendRequest(`/api/like/owner-remove-like/${commentId}`);
+            pendingRequests[`ownerLike_${commentId}`] = false;
         }
 
         async function sendRequest(url) {
             try {
                 const response = await fetch(url, { method: 'POST' });
                 const data = await response.json();
-                if (data.error) {
-                    alert("Error: " + data.error);
-                }
+                if (data.error) console.error("API Error:", data.error);
                 return data;
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Network Error:', error);
                 throw error;
             }
         }
 
         function createComment() {
             const content = commentInput.value.trim();
-            if (!content) return;
-
-            if (content.length > 35) {
-                alert("Error: Comment should be maximum 35 characters.");
-                return;
-            }
-
-            if (pendingRequests['createComment']) return;
+            if (!content || content.length > 35 || pendingRequests['createComment']) return;
             pendingRequests['createComment'] = true;
 
             fetch(`/api/user/${username}/comments`, {
@@ -451,16 +363,48 @@
                     if (data.error) {
                         alert("Error: " + data.error);
                     } else {
-                        getComments();
+                        addCommentToUI(data);
                         commentInput.value = "";
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                })
-                .finally(() => {
-                    pendingRequests['createComment'] = false;
-                });
+                .catch(error => console.error('Error:', error))
+                .finally(() => pendingRequests['createComment'] = false);
+        }
+
+        function addCommentToUI(comment) {
+            const commentElement = document.createElement('div');
+            commentElement.classList.add('comment');
+            commentElement.dataset.commentId = comment.id;
+
+            const isOwnComment = loggedInUser === comment.author;
+            const isOwner = loggedInUser === username;
+
+            const likeButton = createActionButton('like', comment.likes,
+                `handleLikeAction(this, ${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
+                !isOwnComment, comment.is_liked);
+            const dislikeButton = createActionButton('dislike', comment.dislikes,
+                `handleDislikeAction(this, ${comment.id}, ${comment.is_liked}, ${comment.is_disliked})`,
+                !isOwnComment, comment.is_disliked);
+            const ownerLikeButton = createActionButton('heart', '',
+                `handleOwnerLikeAction(this, ${comment.id}, ${comment.is_owner_liked})`,
+                isOwner, comment.is_owner_liked);
+            const deleteButton = createActionButton('delete', '', `deleteComment(${comment.id})`,
+                isOwnComment);
+
+            commentElement.innerHTML = `
+                <div class="comment-header">
+                    <span class="comment-author">${comment.author}</span>
+                    <div class="comment-actions">
+                        ${likeButton}
+                        ${dislikeButton}
+                        ${ownerLikeButton}
+                        ${deleteButton}
+                    </div>
+                </div>
+                <div class="comment-content">${comment.content}</div>
+            `;
+
+            commentsContainer.prepend(commentElement);
         }
 
         function deleteComment(commentId) {
@@ -477,16 +421,18 @@
                     if (data.error) {
                         alert("Error: " + data.error);
                     } else {
-                        alert(data.message);
-                        getComments();
+                        removeCommentFromUI(commentId);
                     }
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                })
-                .finally(() => {
-                    pendingRequests['deleteComment'] = false;
-                });
+                .catch(error => console.error('Error:', error))
+                .finally(() => pendingRequests['deleteComment'] = false);
+        }
+
+        function removeCommentFromUI(commentId) {
+            const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
+            if (commentElement) {
+                commentElement.remove();
+            }
         }
 
         checkLoginStatus();
@@ -510,9 +456,7 @@
                     alert(data.message);
                     window.location.reload();
                 })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
+                .catch(error => console.error('Error:', error));
         });
     </script>
 </body>
