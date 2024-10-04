@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -28,6 +30,7 @@ var (
 	store            = cookie.NewStore([]byte(os.Getenv("SESSION_SECRET")))
 	githubOauthCfg   *oauth2.Config
 	oauthStateString string
+	commentMutex     sync.Mutex
 )
 
 func init() {
@@ -226,20 +229,34 @@ func createComment(c *gin.Context) {
 		return
 	}
 
-	var existing Comment
-	if err := db.Where(&Comment{ReceiverID: receiver.ID}).Where(&Comment{AuthorID: author.ID}).First(&existing).Error; err == nil {
-		c.JSON(400, gin.H{"error": "User already has a comment"})
-		return
-	}
+	commentMutex.Lock()
+	defer commentMutex.Unlock()
 
-	comment := Comment{
-		AuthorID:   author.ID,
-		ReceiverID: receiver.ID,
-		Content:    escapeHTML(req.Content),
-	}
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var existing Comment
+		if err := tx.Where(&Comment{ReceiverID: receiver.ID, AuthorID: author.ID}).First(&existing).Error; err == nil {
+			return errors.New("user already has a comment")
+		}
 
-	if err := db.Create(&comment).Error; err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create comment"})
+		comment := Comment{
+			AuthorID:   author.ID,
+			ReceiverID: receiver.ID,
+			Content:    escapeHTML(req.Content),
+		}
+
+		if err := tx.Create(&comment).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		if err.Error() == "User already has a comment" {
+			c.JSON(400, gin.H{"error": err.Error()})
+		} else {
+			c.JSON(500, gin.H{"error": "Failed to create comment"})
+		}
 		return
 	}
 
