@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elegant Comment System</title>
+    <title>Elegant Comment System with Scrollable Comments</title>
     <style>
         :root {
             --primary-color: #000000;
@@ -167,6 +167,39 @@
             margin-bottom: 15px;
         }
 
+        .comments-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding-right: 10px;
+        }
+
+        .sticky-input {
+            position: sticky;
+            bottom: 0;
+            background-color: var(--secondary-color);
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .comments-wrapper::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .comments-wrapper::-webkit-scrollbar-track {
+            background: var(--accent-color);
+            border-radius: 4px;
+        }
+
+        .comments-wrapper::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .comments-wrapper::-webkit-scrollbar-thumb:hover {
+            background-color: #555;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 30px;
@@ -209,11 +242,15 @@
             <button id="authButton" class="fade-in">Login / Signup</button>
             <button id="logoutButton" class="fade-in" style="display: none;">Logout</button>
         </div>
-        <div id="commentsContainer"></div>
-        <form id="commentForm" class="fade-in" style="display: none;">
-            <input type="text" id="commentInput" placeholder="Share your thoughts... (max 35 characters)"
-                maxlength="35">
-        </form>
+        <div class="comments-wrapper">
+            <div id="commentsContainer"></div>
+        </div>
+        <div class="sticky-input">
+            <form id="commentForm" class="fade-in" style="display: none;">
+                <input type="text" id="commentInput" placeholder="Share your thoughts... (max 35 characters)"
+                    maxlength="35">
+            </form>
+        </div>
     </div>
 
     <script>
@@ -294,6 +331,9 @@
                             </div>`;
                         commentsContainer.appendChild(commentBox);
                     });
+
+                    const commentsWrapper = document.querySelector('.comments-wrapper');
+                    commentsWrapper.scrollTop = commentsWrapper.scrollHeight;
                 })
                 .catch(error => {
                     console.error('Error:', error);
