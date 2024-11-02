@@ -170,6 +170,8 @@ erDiagram
     COMMENT ||--o{ DISLIKED : "has"
 ```
 
+---
+
 <div align="center">
 
 **[맨 위로 올라가기](#-github-profile-comments)**
