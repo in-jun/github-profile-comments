@@ -64,7 +64,7 @@ sequenceDiagram
 
 ```bash
 # 1. 인증 페이지 방문
-https://comment.injunweb.com/api/auth/login
+https://github-comment.injun.dev/api/auth/login
 
 # 2. GitHub OAuth 로그인 진행
 
@@ -77,7 +77,7 @@ https://comment.injunweb.com/api/auth/login
 ```markdown
 # README.md에 추가
 
-[![Comments](https://comment.injunweb.com/api/user/{깃허브아이디}/svg?theme={테마})](https://comment.injunweb.com/{깃허브아이디})
+[![Comments](https://github-comment.injun.dev/api/user/{깃허브아이디}/svg?theme={테마})](https://github-comment.injun.dev/{깃허브아이디})
 ```
 
 ### 설치 확인
@@ -92,9 +92,9 @@ https://comment.injunweb.com/api/auth/login
 
 | 테마        | 설명        | 예시                                                                                                                  |
 | ----------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| black       | 다크 모드   | [![Example](https://comment.injunweb.com/api/user/in-jun/svg?theme=black)](https://comment.injunweb.com/in-jun)       |
-| white       | 라이트 모드 | [![Example](https://comment.injunweb.com/api/user/in-jun/svg?theme=white)](https://comment.injunweb.com/in-jun)       |
-| transparent | 투명 배경   | [![Example](https://comment.injunweb.com/api/user/in-jun/svg?theme=transparent)](https://comment.injunweb.com/in-jun) |
+| black       | 다크 모드   | [![Example](https://github-comment.injun.dev/api/user/in-jun/svg?theme=black)](https://github-comment.injun.dev/in-jun)       |
+| white       | 라이트 모드 | [![Example](https://github-comment.injun.dev/api/user/in-jun/svg?theme=white)](https://github-comment.injun.dev/in-jun)       |
+| transparent | 투명 배경   | [![Example](https://github-comment.injun.dev/api/user/in-jun/svg?theme=transparent)](https://github-comment.injun.dev/in-jun) |
 
 ## 🛠️ 기술 스택
 
