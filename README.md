@@ -77,7 +77,7 @@ https://github-comment.injun.dev/api/auth/login
 ```markdown
 # README.md에 추가
 
-[![Comments](https://github-comment.injun.dev/api/user/{깃허브아이디}/svg?theme={테마})](https://github-comment.injun.dev/{깃허브아이디})
+[![Comments](https://github-comment.injun.dev/api/user/$깃허브아이디/svg?theme=$테마)](https://github-comment.injun.dev/$깃허브아이디)
 ```
 
 ### 설치 확인
